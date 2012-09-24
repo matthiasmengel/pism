@@ -683,6 +683,20 @@ PetscErrorCode IceModel::massContExplicitStep() {
   return 0;
 }
 
+//PetscErrorCode IceModel::grounding_line_mask(PetscReal &gl_mask, PetscReal sea_level,
+                                             //string subgltype, PetscReal sea_level,
+//PetscReal &gl_mask, PetscReal sea_level,
+//gl_maskIceModelVec2Stag &Qstag, int i, int j,
+                                                       //planeStar<PetscScalar> &Q_output) {
+  //Q_output.e = Qstag(i, j, 0);
+  //Q_output.n = Qstag(i, j, 1);
+  //Q_output.w = Qstag(i-1, j, 0);
+  //Q_output.s = Qstag(i, j-1, 1);
+
+  //return 0;
+//}
+
+
 
 PetscErrorCode IceModel::sub_gl_position() {
   PetscErrorCode ierr;
@@ -726,7 +740,8 @@ PetscErrorCode IceModel::sub_gl_position() {
         xpart2=vbed(i+1, j)-sea_level+vH(i+1, j)*rhoq;
         interpol=xpart1/(xpart1-xpart2);
         if (subgltype=="PA") {
-             interpolPA = vH(i+1, j)*(vH(i, j)*rhoq - sea_level + vbed(i, j)) / (vH(i, j)*(sea_level-vbed(i+1, j)) - vH(i+1, j)*(sea_level-vbed(i, j))); //Pattyn
+             interpolPA = vH(i+1, j)*(vH(i, j)*rhoq - sea_level + vbed(i, j)) / 
+               (vH(i, j)*(sea_level-vbed(i+1, j)) - vH(i+1, j)*(sea_level-vbed(i, j))); //Pattyn
              // if (interpolPA>1.0)
              //   interpolPA=1.0;
              // else if (interpolPA<0.0)
@@ -746,7 +761,8 @@ PetscErrorCode IceModel::sub_gl_position() {
         xpart2=vbed(i-1, j)-sea_level+vH(i-1, j)*rhoq;
         interpol=xpart1/(xpart1-xpart2);
         if (subgltype=="PA") {
-          interpolPA = vH(i-1, j)*(vH(i, j)*rhoq - sea_level + vbed(i, j)) / (vH(i, j)*(sea_level-vbed(i-1, j)) - vH(i-1, j)*(sea_level-vbed(i, j))); //Pattyn
+          interpolPA = vH(i-1, j)*(vH(i, j)*rhoq - sea_level + vbed(i, j)) / 
+            (vH(i, j)*(sea_level-vbed(i-1, j)) - vH(i-1, j)*(sea_level-vbed(i, j))); //Pattyn
           interpol=interpolPA;
         }
         if (interpol<0.5)
@@ -786,7 +802,7 @@ PetscErrorCode IceModel::sub_gl_position() {
                 else
                   gl_mask_new(i,j-1)+=(interpol-0.5);
 
-               ierr = verbPrintf(4, grid.com,"!!! PISM_INFO: h1=%f, h2=%f, interpol=%f at i=%d, j=%d\n",xpart1,xpart2,interpol,i,j); CHKERRQ(ierr);
+               ierr = verbPrintf(4, grid.com,"!!! PISM_INFO: h1=%f, h2=%f, interpol=%f, vH=%f at i=%d, j=%d\n",xpart1,xpart2,interpol,vH(i, j),i,j); CHKERRQ(ierr);
               }
       if (mask.grounded(i, j))
         gl_mask_new(i,j) = gl_mask_x * gl_mask_y;
