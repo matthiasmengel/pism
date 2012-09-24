@@ -509,7 +509,7 @@ PetscErrorCode IceModel::model_state_setup() {
   if (basal_yield_stress) {
     ierr = basal_yield_stress->init(variables); CHKERRQ(ierr);
   }
-  
+
   if (config.get_flag("do_rift")) {
 			RiftIsCut=PETSC_FALSE;
 	}
@@ -534,6 +534,9 @@ PetscErrorCode IceModel::model_state_setup() {
 
     ierr = verbPrintf(2, grid.com, "\n"); CHKERRQ(ierr);
   }
+
+  const bool pgg = config.get_flag("part_grid_ground");
+  if ( pgg ) { ierr = verbPrintf(2, grid.com, "part_grid_ground in use,"); CHKERRQ(ierr); }
 
   ierr = stampHistoryCommand(); CHKERRQ(ierr);
 

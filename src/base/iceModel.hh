@@ -159,7 +159,7 @@ public:
   virtual PetscErrorCode setExecName(string my_executable_short_name);
   virtual void reset_counters();
 
-  // see iMbootstrap.cc 
+  // see iMbootstrap.cc
   virtual PetscErrorCode bootstrapFromFile(string fname);
   virtual PetscErrorCode bootstrap_2d(string fname);
   virtual PetscErrorCode bootstrap_3d();
@@ -219,7 +219,7 @@ protected:
         vLatitude,	//!< Latitude; ghosted to compute cell areas
         vbed,		//!< bed topography; ghosted
         vuplift,	//!< bed uplift rate; no ghosts
-        vGhf,		//!< geothermal flux; no ghosts     
+        vGhf,		//!< geothermal flux; no ghosts
         vFD,		//!< fracture density
 				vFG,		//!< fracture growth rate
 				vFH,		//!< fracture healing rate
@@ -228,12 +228,17 @@ protected:
 				vFdepth,//!< fracture depth
 				txx,   //!< deviatoric stress component xx
     		tyy,   //!< deviatoric stress component yy
-    		txy,   //!< deviatoric shear stress component xy      
+    		txy,   //!< deviatoric shear stress component xy
         bedtoptemp,     //!< temperature seen by bedrock thermal layer, if present; no ghosts
                         //!< ghosted to be able to compute tauc "redundantly"
 
         vHref,          //!< accumulated mass advected to a partially filled grid cell
         vHresidual,     //!< residual ice mass of a not any longer partially (fully) filled grid cell
+        vHrefGround,    //!< accumulated mass advected to a partially filled grid cell at grounded margins
+        vHrefThresh,    //!< Threshold height from calving to avoid oscillations.
+        vHavgGround,    //!< height attributed to grounded partial cell from neighbouring ice thicknesses.
+        vPartGridCoeff,   //!< coefficient that determines vHavgGround
+        vJustGotFullCell, //!< stores if a partial grounded cell got full in last timestep.
         vPrinStrain1,   //!< major principal component of horizontal strain-rate tensor
         vPrinStrain2,   //!< minor principal component of horizontal strain-rate tensor
 
@@ -245,16 +250,16 @@ protected:
     shelfbmassflux,	//!< ice mass flux into the ocean at the shelf base; no ghosts
     cell_area;		//!< cell areas (computed using the WGS84 datum)
 
-	
- 
+
+
   IceModelVec2Int vMask, //!< \brief mask for flow type with values ice_free_bedrock,
                          //!< grounded_ice, floating_ice, ice_free_ocean
-    ocean_kill_mask,     //!< mask used by the -ocean_kill code 
+    ocean_kill_mask,     //!< mask used by the -ocean_kill code
     vIcebergMask, //!< mask for iceberg identification
 
     vBCMask; //!< mask to determine Dirichlet boundary locations
   IceModelVec2S gl_mask; //!< mask to determine grounding line position
- 
+
   IceModelVec2V vBCvel; //!< Dirichlet boundary velocities
 
 
@@ -296,7 +301,7 @@ protected:
   string      stdout_flags, stdout_ssa;
 
   string executable_short_name;
-  
+
 protected:
   // see iceModel.cc
   virtual PetscErrorCode createVecs();
@@ -321,7 +326,7 @@ protected:
   virtual PetscErrorCode energyStep();
   virtual PetscErrorCode get_bed_top_temp(IceModelVec2S &result);
   virtual bool checkThinNeigh(
-       PetscScalar E, PetscScalar NE, PetscScalar N, PetscScalar NW, 
+       PetscScalar E, PetscScalar NE, PetscScalar N, PetscScalar NW,
        PetscScalar W, PetscScalar SW, PetscScalar S, PetscScalar SE);
 
   // see iMenthalpy.cc
@@ -350,7 +355,7 @@ protected:
   virtual PetscErrorCode enthalpyAndDrainageStep(
                 PetscScalar* vertSacrCount, PetscScalar* liquifiedVol,
                 PetscScalar* bulgeCount);
-                
+
   // see iMfractures.cc
   virtual PetscErrorCode calculateFractureDensity();
   virtual PetscErrorCode applyRift();
@@ -389,6 +394,10 @@ protected:
   virtual PetscErrorCode redistResiduals();
   virtual PetscErrorCode calculateRedistResiduals();
 
+  // see iMpartgridground.cc
+  PetscReal get_average_thickness_fg(planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h, planeStar<PetscScalar> Q, planeStar<PetscScalar> Qssa, PetscReal bed_ij, PetscScalar &sia_ssa_coeff);
+  virtual PetscErrorCode killLonelyPGGCells();
+
   // see iMreport.cc
   virtual PetscErrorCode volumeArea(
                        PetscScalar& gvolume,PetscScalar& garea);
@@ -398,7 +407,7 @@ protected:
   virtual PetscErrorCode summary(bool tempAndAge);
   virtual PetscErrorCode summaryPrintLine(
               PetscBool printPrototype, bool tempAndAge,
-              string date, PetscScalar delta_t, 
+              string date, PetscScalar delta_t,
               PetscScalar volume, PetscScalar area,
               PetscScalar meltfrac, PetscScalar max_diffusivity);
 

@@ -116,9 +116,9 @@ public:
   // {
   //   double leave_band_of_width = config.get("leave_band_of_width");
   // }
-  
 
-  
+
+
   inline bool ocean(int i, int j) { return Mask::ocean(mask.as_int(i, j)); }
 
   inline bool grounded(int i, int j) { return !ocean(i, j); }
@@ -169,7 +169,7 @@ public:
     return floating_ice(i, j) &&
       (ice_free_land(i + 1, j) || ice_free_land(i - 1, j) || ice_free_land(i, j + 1) || ice_free_land(i, j - 1));
   }
-  
+
 
 
 

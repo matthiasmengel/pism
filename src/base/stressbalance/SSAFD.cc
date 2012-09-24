@@ -191,7 +191,7 @@ PetscErrorCode SSAFD::assemble_rhs(Vec rhs) {
     ierr = bed->begin_access(); CHKERRQ(ierr);
     ierr = mask->begin_access(); CHKERRQ(ierr);
   }
-  
+
   PetscInt mod_cf_taud_version = config.get("mod_cf_taud");
 
   for (PetscInt i = grid.xs; i < grid.xs + grid.xm; ++i) {
@@ -234,10 +234,10 @@ PetscErrorCode SSAFD::assemble_rhs(Vec rhs) {
             if (M.ice_free(M_w)) aMM = 0;
             if (M.ice_free(M_n)) bPP = 0;
             if (M.ice_free(M_s)) bMM = 0;
-            
+
             if ((aPP==0 || aMM==0)&&(j==50)){
             ierr = verbPrintf(1,grid.com, "\n!!!: RHS:app=%d and amm=%d at %d, %d \n\n",aPP,aMM,i,j); CHKERRQ(ierr);}
-            
+
           }
 
           double ice_pressure = ice_rho * standard_gravity * H_ij,
@@ -255,11 +255,11 @@ PetscErrorCode SSAFD::assemble_rhs(Vec rhs) {
             // this is not really the ocean_pressure, but the difference between
             // ocean_pressure and isotrop.normal stresses (=pressure) from within
             // the ice
-            // what is the force balance of an iceshelf facing a bedrock wall?! 
+            // what is the force balance of an iceshelf facing a bedrock wall?!
             // this is not relevant as long as we ask only for ice_free_ocean neighbors
             //if ((aPP==0 && (*bed)(i+1,j)>h_ij) || (aMM==0 && (*bed)(i-1,j)>h_ij) ||
             //    (bPP==0 && (*bed)(i,j+1)>h_ij) || (bMM==0 && (*bed)(i,j-1)>h_ij)){
-            //  ocean_pressure = 0.0; 
+            //  ocean_pressure = 0.0;
             //}
             if (mod_cf_taud_version == 0) //default
               h_ij = (1.0 - ice_rho / ocean_rho) * H_ij;
@@ -286,7 +286,7 @@ PetscErrorCode SSAFD::assemble_rhs(Vec rhs) {
               // boundary condition for marine terminating glacier
               ocean_pressure = 0.5 * ice_rho * standard_gravity *
                 (H_ij2 - (ocean_rho / ice_rho)*(sea_level - (*bed)(i,j))*(sea_level - (*bed)(i,j)));
-                
+
               if (mod_cf_taud_version == 0) //default
                 h_ij = H_ij + (*bed)(i,j) - sea_level;
               else if (mod_cf_taud_version == 1){ //take into account average upstream surface elevation
@@ -299,15 +299,15 @@ PetscErrorCode SSAFD::assemble_rhs(Vec rhs) {
                 if (M.grounded_ice(M_n) && bMM==0)
                   h_ij = 0.5*(H_ij + (*bed)(i,j)+ (*thickness)(i,j+1) + (*bed)(i,j+1)) - sea_level;
               }
-              else { 
+              else {
                 PetscScalar taud_factor=0.0;
-                if (mod_cf_taud_version == 2) 
+                if (mod_cf_taud_version == 2)
                   taud_factor=0.5; //take into account half the surface elev. of upstream neigbor only (classic centered differences)
                 else if (mod_cf_taud_version == 3)
-                  taud_factor=1.0; //take into account full surface elev. of upstream neigbor only 
+                  taud_factor=1.0; //take into account full surface elev. of upstream neigbor only
                 else if (mod_cf_taud_version == 4)
-                  taud_factor=2.0;//take into account double surface elev. of upstream neigbor only                 
-                
+                  taud_factor=2.0;//take into account double surface elev. of upstream neigbor only
+
                 if (M.grounded_ice(M_w) && aPP==0)
                   h_ij = taud_factor*((*thickness)(i-1,j) + (*bed)(i-1,j)) - sea_level;
                 if (M.grounded_ice(M_e) && aMM==0)
@@ -316,7 +316,7 @@ PetscErrorCode SSAFD::assemble_rhs(Vec rhs) {
                   h_ij = taud_factor*((*thickness)(i,j-1) + (*bed)(i,j-1)) - sea_level;
                 if (M.grounded_ice(M_n) && bMM==0)
                   h_ij = taud_factor*((*thickness)(i,j+1) + (*bed)(i,j+1)) - sea_level;
-              }         
+              }
             }
           }
 
@@ -334,8 +334,8 @@ PetscErrorCode SSAFD::assemble_rhs(Vec rhs) {
           // location, the following two lines are equaivalent to the "usual
           // case" below.
           rhs_uv[i][j].u = +tdx - (aMM - aPP)*ocean_pressure / dx;
-          rhs_uv[i][j].v = +tdy - (bMM - bPP)*ocean_pressure / dy;   
-          
+          rhs_uv[i][j].v = +tdy - (bMM - bPP)*ocean_pressure / dy;
+
           //if (j==50 ){
           //ierr = verbPrintf(1,grid.com, "\n!!!: RHS: tdx %.3e and tstat %.3e and rhsx %.3e for app=%d and amm=%d at %d, %d \n\n",tdx,(aPP - aMM)*ocean_pressure/dx,rhs_uv[i][j].u,aPP,aMM,i,j); CHKERRQ(ierr);}
 
@@ -470,7 +470,7 @@ PetscErrorCode SSAFD::assemble_matrix(bool include_basal_shear, Mat A) {
   if (vel_bc && bc_locations) {
     ierr = bc_locations->begin_access(); CHKERRQ(ierr);
   }
-  
+
   const bool sub_gl = config.get_flag("sub_groundingline");
   if (sub_gl){
     ierr = gl_mask->begin_access(); CHKERRQ(ierr);
@@ -517,9 +517,9 @@ PetscErrorCode SSAFD::assemble_matrix(bool include_basal_shear, Mat A) {
                  M_n = mask->as_int(i,j + 1),
                 M_s = mask->as_int(i,j - 1);
 
-        // if ((*thickness)(i,j) > HminFrozen) {  
+        // if ((*thickness)(i,j) > HminFrozen) {
         //    if ((*bed)(i-1,j) > (*surface)(i,j) && M.ice_free_land(M_w)) {
-        //      c_w = nuBedrock * 0.5 * ((*thickness)(i,j)+(*thickness)(i-1,j));     
+        //      c_w = nuBedrock * 0.5 * ((*thickness)(i,j)+(*thickness)(i-1,j));
         //    }
         //    if ((*bed)(i+1,j) > (*surface)(i,j) && M.ice_free_land(M_e)) {
         //      c_e = nuBedrock * 0.5 * ((*thickness)(i,j)+(*thickness)(i+1,j));
@@ -531,9 +531,9 @@ PetscErrorCode SSAFD::assemble_matrix(bool include_basal_shear, Mat A) {
         //      c_s = nuBedrock * 0.5 * ((*thickness)(i,j)+(*thickness)(i+1,j));
         //    }
         //  }
-         
+
          // if ((*bed)(i-1,j) > (*surface)(i,j)){
-         //   c_w = nuBedrock * 0.5 * (*thickness)(i,j);     
+         //   c_w = nuBedrock * 0.5 * (*thickness)(i,j);
          // }
          // if ((*bed)(i+1,j) > (*surface)(i,j)){
          //   c_e = nuBedrock * 0.5 * (*thickness)(i,j);
@@ -544,25 +544,25 @@ PetscErrorCode SSAFD::assemble_matrix(bool include_basal_shear, Mat A) {
          // if ((*bed)(i,j-1) > (*surface)(i,j)){
          //   c_s = nuBedrock * 0.5 * (*thickness)(i,j);
          // }
-         
+
          if ((*thickness)(i,j) > HminFrozen && bc_locations) {
             if (bc_locations->as_int(i-1,j) == 1) {
-               c_w = nuBedrock * 0.5 * ((*thickness)(i,j)+(*thickness)(i-1,j)); 
-               //ierr = verbPrintf(1,grid.com,"\n !!! nu bedrock south at %d %d \n", i,j); CHKERRQ(ierr);    
+               c_w = nuBedrock * 0.5 * ((*thickness)(i,j)+(*thickness)(i-1,j));
+               //ierr = verbPrintf(1,grid.com,"\n !!! nu bedrock south at %d %d \n", i,j); CHKERRQ(ierr);
             }
             if (bc_locations->as_int(i+1,j) == 1) {
               c_e = nuBedrock * 0.5 * ((*thickness)(i,j)+(*thickness)(i+1,j));
-              //ierr = verbPrintf(1,grid.com,"\n !!! nu bedrock north at %d %d \n", i,j); CHKERRQ(ierr);   
+              //ierr = verbPrintf(1,grid.com,"\n !!! nu bedrock north at %d %d \n", i,j); CHKERRQ(ierr);
             }
             if (bc_locations->as_int(i,j+1) == 1) {
               c_n = nuBedrock * 0.5 * ((*thickness)(i,j)+(*thickness)(i,j+1));
-              //ierr = verbPrintf(1,grid.com,"\n !!! nu bedrock east at %d %d \n", i,j); CHKERRQ(ierr); 
+              //ierr = verbPrintf(1,grid.com,"\n !!! nu bedrock east at %d %d \n", i,j); CHKERRQ(ierr);
             }
             if (bc_locations->as_int(i,j-1) == 1) {
               c_s = nuBedrock * 0.5 * ((*thickness)(i,j)+(*thickness)(i+1,j));
-              //ierr = verbPrintf(1,grid.com,"\n !!! nu bedrock west at %d %d \n", i,j); CHKERRQ(ierr); 
+              //ierr = verbPrintf(1,grid.com,"\n !!! nu bedrock west at %d %d \n", i,j); CHKERRQ(ierr);
             }
-         }   
+         }
       }
 
       // We use DAGetMatrix to obtain the SSA matrix, which means that all 18
@@ -705,7 +705,7 @@ PetscErrorCode SSAFD::assemble_matrix(bool include_basal_shear, Mat A) {
           // areas already have a strength extension
           beta = beta_ice_free_bedrock;
         }
-        
+
         if (sub_gl){
           // if grounding line interpolation apply here reduced basal drag
           if (M.icy(M_ij)) {
@@ -737,7 +737,7 @@ PetscErrorCode SSAFD::assemble_matrix(bool include_basal_shear, Mat A) {
   if (vel_bc && bc_locations) {
     ierr = bc_locations->end_access(); CHKERRQ(ierr);
   }
-  
+
   if (sub_gl){
     ierr = gl_mask->end_access(); CHKERRQ(ierr);
    }
@@ -876,7 +876,7 @@ PetscErrorCode SSAFD::solve() {
               "  writing linear system to PETSc binary file %s ...\n",filename);
               CHKERRQ(ierr);
           PetscViewer    viewer;
-          ierr = PetscViewerBinaryOpen(grid.com, filename, FILE_MODE_WRITE, 
+          ierr = PetscViewerBinaryOpen(grid.com, filename, FILE_MODE_WRITE,
                                        &viewer); CHKERRQ(ierr);
           ierr = MatView(A,viewer); CHKERRQ(ierr);
           ierr = VecView(SSARHS,viewer); CHKERRQ(ierr);
@@ -1203,14 +1203,14 @@ PetscErrorCode SSAFD::compute_nuH_staggered(IceModelVec2Stag &result, PetscReal 
   ierr = velocity.get_array(uv); CHKERRQ(ierr);
   ierr = hardness.begin_access(); CHKERRQ(ierr);
   ierr = thickness->begin_access(); CHKERRQ(ierr);
-  
+
   /////////////////////////////////////////////////////////////////////
 
   IceModelVec2S &fd = *fracdens; // to improve readability (below)
   bool dofd = (config.get_flag("do_fracture_density") && config.get_flag("use_ssa_velocity"));
-  if (dofd) 
+  if (dofd)
     ierr = fd.begin_access(); CHKERRQ(ierr);
-  
+
   //get options
   PetscInt    Nparam=3;
   PetscReal   inarray[3] = {0.0,0.0,1.0};//phi_init, soft_rate, soft_offset
@@ -1230,8 +1230,8 @@ PetscErrorCode SSAFD::compute_nuH_staggered(IceModelVec2Stag &result, PetscReal 
     }
     //ierr = verbPrintf(2, grid.com,"PISM-PIK INFO: fracture_softening mode is set with phi_min=%.2f, ms=%.2f and ns=%.2f\n", phi_init,soft_rate,soft_offset); CHKERRQ(ierr);
   }
-				
-  /////////////////////////////////////////////////////////  
+
+  /////////////////////////////////////////////////////////
 
   PetscScalar ssa_enhancement_factor = flow_law->enhancement_factor(),
     n_glen = flow_law->exponent(),
@@ -1305,7 +1305,7 @@ PetscErrorCode SSAFD::compute_nuH_staggered(IceModelVec2Stag &result, PetscReal 
   ierr = hardness.end_access(); CHKERRQ(ierr);
   ierr = result.end_access(); CHKERRQ(ierr);
   ierr = velocity.end_access(); CHKERRQ(ierr);
-  
+
   if (dofd) { ierr = fd.end_access(); CHKERRQ(ierr); }
 
   // Some communication
@@ -1384,7 +1384,7 @@ PetscErrorCode SSAFD::set_diagonal_matrix_entry(Mat A, int i, int j,
  * consistent.
  */
 bool SSAFD::is_marginal(int i, int j, bool ssa_dirichlet_bc) {
-	
+
   const PetscInt M_ij = mask->as_int(i,j),
     // direct neighbors
     M_e = mask->as_int(i + 1,j),
@@ -1408,6 +1408,19 @@ bool SSAFD::is_marginal(int i, int j, bool ssa_dirichlet_bc) {
       (M.ice_free_ocean(M_e) || M.ice_free_ocean(M_w) || M.ice_free_ocean(M_n) || M.ice_free_ocean(M_s) ||
        M.ice_free_ocean(M_ne) || M.ice_free_ocean(M_se) || M.ice_free_ocean(M_nw) || M.ice_free_ocean(M_sw));
   }
+}
+
+bool SSAFD::is_grounded_margin(int i, int j) {
+  const PetscInt M_ij = mask->as_int(i,j),
+    // direct neighbors
+    M_e = mask->as_int(i + 1,j),
+    M_w = mask->as_int(i - 1,j),
+    M_n = mask->as_int(i,j + 1),
+    M_s = mask->as_int(i,j - 1);
+
+  Mask M;
+  return (M.grounded_ice(M_ij)) &&
+    (M.ice_free(M_e) || M.ice_free(M_w) || M.ice_free(M_n) || M.ice_free(M_s));
 }
 
 SSAFD_nuH::SSAFD_nuH(SSAFD *m, IceGrid &g, PISMVars &my_vars)
