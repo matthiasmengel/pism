@@ -395,7 +395,7 @@ protected:
   virtual PetscErrorCode calculateRedistResiduals();
 
   // see iMpartgridground.cc
-  PetscReal get_average_thickness_fg(planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h, planeStar<PetscScalar> Q, planeStar<PetscScalar> Qssa, PetscReal bed_ij, PetscScalar &sia_ssa_coeff);
+  PetscReal get_average_thickness_fg(planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h, planeStar<PetscScalar> Q, planeStar<PetscScalar> Qssa, PetscReal bed_ij, PetscScalar &sia_ssa_coeff, PetscReal shelfbmflux);
   virtual PetscErrorCode killLonelyPGGCells();
 
   // see iMreport.cc

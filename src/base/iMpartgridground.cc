@@ -31,7 +31,8 @@
 //! matthias.mengel@pik
 
 PetscReal IceModel::get_average_thickness_fg(planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h,
-                                             planeStar<PetscScalar> Q, planeStar<PetscScalar> Qssa, PetscReal bed_ij, PetscScalar &sia_ssa_coeff) {
+                                             planeStar<PetscScalar> Q, planeStar<PetscScalar> Qssa, PetscReal bed_ij,
+                                             PetscScalar &sia_ssa_coeff, PetscReal shelfbmflux) {
   PetscErrorCode ierr;
   bool margin_coeff_set;
   PetscReal margin_coeff;
@@ -41,6 +42,10 @@ PetscReal IceModel::get_average_thickness_fg(planeStar<int> M, planeStar<PetscSc
     CHKERRQ(ierr);
     PISMEnd();
   }
+
+  PetscReal ice_rho   = config.get("ice_density"),
+            ocean_rho = config.get("sea_water_density"),
+            rhoq      = ice_rho/ocean_rho;
 
 //   ierr = vTestVar.begin_access(); CHKERRQ(ierr);
 
@@ -100,6 +105,10 @@ PetscReal IceModel::get_average_thickness_fg(planeStar<int> M, planeStar<PetscSc
     sia_ssa_coeff = 1.0;
   }
 
+  if (H_average*(1-rhoq) < bed_ij){
+    ierr = verbPrintf(2, grid.com,"bed=%e, Havg below water=%e, shelfbm=%e\n",bed_ij,H_average*(1-rhoq),shelfbmflux); CHKERRQ(ierr);
+    H_average -= shelfbmflux;
+  }
   return H_average * sia_ssa_coeff;
 }
 
@@ -111,8 +120,8 @@ PetscErrorCode IceModel::killLonelyPGGCells() {
   PetscReal sea_level;
   if (ocean != NULL) {
     ierr = ocean->sea_level_elevation(sea_level); CHKERRQ(ierr);
-  } else { 
-    SETERRQ(grid.com,2, "PISM ERROR: ocean == NULL"); 
+  } else {
+    SETERRQ(grid.com,2, "PISM ERROR: ocean == NULL");
   }
   double ocean_rho = config.get("sea_water_density"),
          ice_rho   = config.get("ice_density");

@@ -232,10 +232,10 @@ PetscErrorCode IceModel::massContExplicitStep() {
 
   const bool constant_thickness = config.get_flag("do_constant_thickness");
   if (constant_thickness) {//no mass
-	  if (config.get_flag("do_fracture_density") && config.get_flag("use_ssa_velocity")) {
-	    ierr = calculateFractureDensity(); CHKERRQ(ierr);
-	  }
-  	  return 0;
+    if (config.get_flag("do_fracture_density") && config.get_flag("use_ssa_velocity")) {
+      ierr = calculateFractureDensity(); CHKERRQ(ierr);
+    }
+      return 0;
   }
 
   PetscScalar
@@ -442,7 +442,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
 
       } else if ( do_part_grid_ground && mask.next_to_grounded_ice(i, j) ) {
         // calc part grid criterum from surrounding boxes
-        vHavgGround(i,j) = get_average_thickness_fg(M, vH.star(i, j), vh.star(i,j), Q, Qssa, vbed(i,j), coeff);
+        vHavgGround(i,j) = get_average_thickness_fg(M, vH.star(i, j), vh.star(i,j), Q, Qssa, vbed(i,j), coeff, shelfbmassflux(i,j));
         vPartGridCoeff(i,j) = coeff;
 
         if( vHrefGround(i,j) > PetscMax(vHavgGround(i,j), vHrefThresh(i,j)) ){
@@ -653,9 +653,9 @@ PetscErrorCode IceModel::massContExplicitStep() {
   }
 
   if (config.get_flag("do_rift")) {
-		if (RiftIsCut==PETSC_FALSE) {
-    	ierr = applyRift(); CHKERRQ(ierr);
-		}
+    if (RiftIsCut==PETSC_FALSE) {
+      ierr = applyRift(); CHKERRQ(ierr);
+    }
   }
 
   // distribute residual ice mass if desired
@@ -740,7 +740,7 @@ PetscErrorCode IceModel::sub_gl_position() {
         xpart2=vbed(i+1, j)-sea_level+vH(i+1, j)*rhoq;
         interpol=xpart1/(xpart1-xpart2);
         if (subgltype=="PA") {
-             interpolPA = vH(i+1, j)*(vH(i, j)*rhoq - sea_level + vbed(i, j)) / 
+             interpolPA = vH(i+1, j)*(vH(i, j)*rhoq - sea_level + vbed(i, j)) /
                (vH(i, j)*(sea_level-vbed(i+1, j)) - vH(i+1, j)*(sea_level-vbed(i, j))); //Pattyn
              // if (interpolPA>1.0)
              //   interpolPA=1.0;
@@ -761,7 +761,7 @@ PetscErrorCode IceModel::sub_gl_position() {
         xpart2=vbed(i-1, j)-sea_level+vH(i-1, j)*rhoq;
         interpol=xpart1/(xpart1-xpart2);
         if (subgltype=="PA") {
-          interpolPA = vH(i-1, j)*(vH(i, j)*rhoq - sea_level + vbed(i, j)) / 
+          interpolPA = vH(i-1, j)*(vH(i, j)*rhoq - sea_level + vbed(i, j)) /
             (vH(i, j)*(sea_level-vbed(i-1, j)) - vH(i-1, j)*(sea_level-vbed(i, j))); //Pattyn
           interpol=interpolPA;
         }
