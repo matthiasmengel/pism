@@ -426,9 +426,6 @@ PetscErrorCode IceModel::createVecs() {
     ierr = vHavgGround.create(grid, "HavgGround", true); CHKERRQ(ierr);
     ierr = vHavgGround.set_attrs("model_state", "ice thickness attributed from neighbours at grounded margin", "m", ""); CHKERRQ(ierr);
     ierr = variables.add(vHavgGround); CHKERRQ(ierr);
-    ierr = vHrefThresh.create(grid, "HrefThresh", true); CHKERRQ(ierr);
-    ierr = vHrefThresh.set_attrs("model_state", "threshold ice thickness 5pct over calving height to avoid oscillations", "m", ""); CHKERRQ(ierr);
-    ierr = variables.add(vHrefThresh); CHKERRQ(ierr);
     ierr = vJustGotFullCell.create(grid, "JustGotFullCell", true); CHKERRQ(ierr);
     ierr = vJustGotFullCell.set_attrs("diagnostic", "this got a full cell from part grid ground in last timestep", "", ""); CHKERRQ(ierr);
     ierr = variables.add(vJustGotFullCell); CHKERRQ(ierr);

@@ -325,7 +325,6 @@ PetscErrorCode IceModel::massContExplicitStep() {
     ierr = vHrefGround.begin_access(); CHKERRQ(ierr);
     ierr = vJustGotFullCell.begin_access(); CHKERRQ(ierr);
     ierr = vHavgGround.begin_access(); CHKERRQ(ierr);
-    ierr = vHrefThresh.begin_access(); CHKERRQ(ierr);
     ierr = vPartGridCoeff.begin_access(); CHKERRQ(ierr);
     ierr = vTestVar.begin_access(); CHKERRQ(ierr);
 
@@ -452,10 +451,10 @@ PetscErrorCode IceModel::massContExplicitStep() {
         vHavgGround(i,j) = get_average_thickness_fg(M, vH.star(i, j), vh.star(i,j), Q, Qssa, vbed(i,j), coeff);
         vPartGridCoeff(i,j) = coeff;
 
-        if( vHrefGround(i,j) > PetscMax(vHavgGround(i,j), vHrefThresh(i,j)) ){
+        if( vHrefGround(i,j) > vHavgGround(i,j) ){
           // partial grid cell --> ice filled cell
           if ( vHnew(i, j) != 0 )
-            SETERRQ2(grid.com, 1, "Hnew should not be > 0 at  i=%d, j=%d\n", i, j);
+            PetscSynchronizedPrintf(grid.com, "Hnew should not be Hnew=%e > 0 at i=%d, j=%d\n",vHnew(i, j),i, j);
 
           vHnew(i,j) = vHrefGround(i,j) + (acab(i, j) - S - divQ)*dt;
           PetscSynchronizedPrintf(grid.com,"make HrefG=%e a Hnew+MB=%e at i=%d, j=%d\n",vHrefGround(i,j),vHnew(i, j),i,j);
@@ -480,7 +479,6 @@ PetscErrorCode IceModel::massContExplicitStep() {
           PetscSynchronizedPrintf(grid.com,"kill HrefG=%e inside ice at i=%d, j=%d\n",vHrefGround(i,j),i,j);
           //vHnew(i,j) += vHrefGround(i,j);
           vHrefGround(i,j) = 0.0;
-          vHrefThresh(i,j) = 0.0;
         }
 
         if ( do_part_grid_ground ) vJustGotFullCell(i,j) = 0.;
@@ -611,7 +609,6 @@ PetscErrorCode IceModel::massContExplicitStep() {
   if (do_part_grid_ground) {
     ierr = vHrefGround.end_access(); CHKERRQ(ierr);
     ierr = vHavgGround.end_access(); CHKERRQ(ierr);
-    ierr = vHrefThresh.end_access(); CHKERRQ(ierr);
     ierr = vJustGotFullCell.end_access(); CHKERRQ(ierr);
     ierr = vPartGridCoeff.end_access(); CHKERRQ(ierr);
     ierr = vTestVar.end_access(); CHKERRQ(ierr);

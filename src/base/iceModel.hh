@@ -235,7 +235,6 @@ protected:
         vHref,          //!< accumulated mass advected to a partially filled grid cell
         vHresidual,     //!< residual ice mass of a not any longer partially (fully) filled grid cell
         vHrefGround,    //!< accumulated mass advected to a partially filled grid cell at grounded margins
-        vHrefThresh,    //!< Threshold height from calving to avoid oscillations.
         vHavgGround,    //!< height attributed to grounded partial cell from neighbouring ice thicknesses.
         vPartGridCoeff,   //!< coefficient that determines vHavgGround
         vJustGotFullCell, //!< stores if a partial grounded cell got full in last timestep.

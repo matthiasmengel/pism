@@ -434,14 +434,6 @@ PetscErrorCode IceModel::initFromFile(string filename) {
       ierr = vHavgGround.set_attr("pism_intent", "diagnostic"); CHKERRQ(ierr);
       ierr = vHavgGround.set(0.0); CHKERRQ(ierr);
     }
-    ierr = nc.inq_var("HrefThresh", exists); CHKERRQ(ierr);
-    if (!exists) {
-      ierr = verbPrintf(2, grid.com,
-        "PISM WARNING: HrefThresh for -part_grid_ground not found in %s. Setting it to zero...\n",
-        filename.c_str()); CHKERRQ(ierr);
-      ierr = vHrefThresh.set_attr("pism_intent", "diagnostic"); CHKERRQ(ierr);
-      ierr = vHrefThresh.set(0.0); CHKERRQ(ierr);
-    }
     ierr = nc.inq_var("PartGridCoeff", exists); CHKERRQ(ierr);
     if (!exists) {
       ierr = verbPrintf(2, grid.com,
@@ -554,7 +546,6 @@ PetscErrorCode IceModel::initFromFile(string filename) {
   if (config.get_flag("part_grid_ground")) {
     ierr = vHrefGround.set_attr("pism_intent", "model_state"); CHKERRQ(ierr);
     ierr = vHavgGround.set_attr("pism_intent", "model_state"); CHKERRQ(ierr);
-    ierr = vHrefThresh.set_attr("pism_intent", "model_state"); CHKERRQ(ierr);
     ierr = vPartGridCoeff.set_attr("pism_intent", "model_state"); CHKERRQ(ierr);
     ierr = vJustGotFullCell.set_attr("pism_intent", "model_state"); CHKERRQ(ierr);
     ierr = vTestVar.set_attr("pism_intent", "model_state"); CHKERRQ(ierr);

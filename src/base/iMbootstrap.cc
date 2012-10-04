@@ -173,7 +173,6 @@ PetscErrorCode IceModel::bootstrap_2d(string filename) {
     // description to be added, matthias.mengel@pik
     ierr = vHrefGround.set(0.0); CHKERRQ(ierr);
     ierr = vHavgGround.set(0.0); CHKERRQ(ierr);
-    ierr = vHrefThresh.set(0.0); CHKERRQ(ierr);
     ierr = vJustGotFullCell.set(0.0); CHKERRQ(ierr);
     ierr = vTestVar.set(0.0); CHKERRQ(ierr);
     ierr = vPartGridCoeff.set(0.0); CHKERRQ(ierr);

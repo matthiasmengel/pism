@@ -121,7 +121,6 @@ PetscErrorCode IceModel::killLonelyPGGCells() {
   ierr = vH.begin_access(); CHKERRQ(ierr);
   ierr = vHnew.begin_access(); CHKERRQ(ierr);
   ierr = vHrefGround.begin_access(); CHKERRQ(ierr);
-  ierr = vHrefThresh.begin_access(); CHKERRQ(ierr);
   ierr = vbed.begin_access(); CHKERRQ(ierr);
 
   PetscReal C = (1.0 - ice_rho / ocean_rho);
@@ -139,8 +138,6 @@ PetscErrorCode IceModel::killLonelyPGGCells() {
 
       if ( vHrefGround(i, j) > 0.0 && all_4neighbors_ungrounded) {
         vHrefGround(i, j) = 0.0;
-        vHrefThresh(i, j) = 0.0;
-//         vMask(i, j) = MASK_ICE_FREE_OCEAN;
         if (vpik) {
               PetscSynchronizedPrintf(grid.com,
                 "PISM-PIK INFO: [rank %d] killed lonely PGG cell at i = %d, j = %d\n",
@@ -153,7 +150,6 @@ PetscErrorCode IceModel::killLonelyPGGCells() {
   ierr = vH.end_access(); CHKERRQ(ierr);
   ierr = vHnew.end_access(); CHKERRQ(ierr);
   ierr = vHrefGround.end_access(); CHKERRQ(ierr);
-  ierr = vHrefThresh.end_access(); CHKERRQ(ierr);
   ierr = vbed.begin_access(); CHKERRQ(ierr);
   return 0;
 }
