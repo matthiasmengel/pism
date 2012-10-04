@@ -659,6 +659,7 @@ PetscErrorCode set_config_from_options(MPI_Comm /*com*/, NCConfigVariable &confi
   ierr = config.flag_from_option("part_redist", "part_redist"); CHKERRQ(ierr);
 
   ierr = config.flag_from_option("part_grid_ground", "part_grid_ground"); CHKERRQ(ierr);
+  ierr = config.flag_from_option("ppg_simple","pgg_simple"); CHKERRQ(ierr);
 
   ierr = config.scalar_from_option("nuBedrock", "nuBedrock"); CHKERRQ(ierr);
   ierr = PISMOptionsIsSet("-nuBedrock", flag);  CHKERRQ(ierr);

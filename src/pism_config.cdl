@@ -61,6 +61,9 @@ netcdf pism_config {
     pism_config:part_grid_ground = "no";
     pism_config:part_grid_ground_doc = "apply partially filled grid cell scheme for grounded margins";
 
+    pism_config:pgg_simple = "no";
+    pism_config:pgg_simple_doc = "simplest way to scale partial grounded cell height";
+
     pism_config:part_redist = "no";
     pism_config:part_redist_doc = "for partially filled grid cell scheme, redistribute residuals Hresidual";
 

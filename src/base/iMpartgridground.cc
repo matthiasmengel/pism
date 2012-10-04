@@ -43,6 +43,8 @@ PetscReal IceModel::get_average_thickness_fg(planeStar<int> M, planeStar<PetscSc
     PISMEnd();
   }
 
+  const bool pgg_simple = config.get_flag("pgg_simple");
+
   Mask m;
   PetscInt N = 0;
   PetscReal H_average = 0.0;
@@ -64,6 +66,9 @@ PetscReal IceModel::get_average_thickness_fg(planeStar<int> M, planeStar<PetscSc
     H_average = 200.0;
   }
 
+  if( pgg_simple )
+    return H_average * margin_coeff;
+
   //
   //if( m.grounded_ice(M.ij) ){
   PetscReal h_average = 0.0;
@@ -83,7 +88,7 @@ PetscReal IceModel::get_average_thickness_fg(planeStar<int> M, planeStar<PetscSc
   }
 
   // decide on which Href to use, this is usually H_average for downward sloping and H_average_FromBed for upward sloping ground.
-  PetscSynchronizedPrintf(grid.com,"Havg=%e, Havg_bed=%e, bed=%e",H_average, H_average_FromBed,bed_ij);
+  PetscSynchronizedPrintf(grid.com,"Havg=%e, Havg_bed=%e, bed=%e\n",H_average, H_average_FromBed,bed_ij);
   H_average = PetscMin(H_average, H_average_FromBed);
   //}
 

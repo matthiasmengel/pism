@@ -362,6 +362,8 @@ PetscErrorCode IceModel::massContExplicitStep() {
       planeStar<PetscScalar> Q;
       planeStar<PetscScalar> Qssa;
 
+      vTestVar(i,j)     = 0.0;
+
       if (mask.grounded(i, j) ||
            (do_part_grid_ground && mask.next_to_grounded_ice(i, j))) {
         ierr = cell_interface_diffusive_flux(*Qdiff, i, j, Q); CHKERRQ(ierr);
@@ -463,7 +465,6 @@ PetscErrorCode IceModel::massContExplicitStep() {
         } else{
           // no surface mass balance here
           vHrefGround(i,j) -= divQ * dt;
-          vTestVar(i,j)     = 0.0;
           if (vHrefGround(i,j)*(1-rhoq) < -vbed(i,j)){
             PetscSynchronizedPrintf(grid.com,"HrefG*(1-rhoq)=%e vbed=%e at i=%d, j=%d\n",vHrefGround(i,j)*(1-rhoq),vbed(i,j),i,j);
             PetscReal meltarea = vHrefGround(i,j)/vHavgGround(i,j);
