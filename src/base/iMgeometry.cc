@@ -454,9 +454,9 @@ PetscErrorCode IceModel::massContExplicitStep() {
 
         if( vHrefGround(i,j) > PetscMax(vHavgGround(i,j), vHrefThresh(i,j)) ){
           // partial grid cell --> ice filled cell
-          if ( vHnew(i, j) != 0 ){
-            ierr = verbPrintf(2, grid.com,"Hnew should not be %e > 0 at  i=%d, j=%d\n",vHnew(i, j),i,j); CHKERRQ(ierr);
-          }
+          if ( vHnew(i, j) != 0 )
+            SETERRQ2(grid.com, 1, "Hnew should not be > 0 at  i=%d, j=%d\n", i, j);
+
           vHnew(i,j) = vHrefGround(i,j) + (acab(i, j) - S - divQ)*dt;
           PetscSynchronizedPrintf(grid.com,"make HrefG=%e a Hnew+MB=%e at i=%d, j=%d\n",vHrefGround(i,j),vHnew(i, j),i,j);
           vHrefGround(i,j) = 0.0;
@@ -464,9 +464,12 @@ PetscErrorCode IceModel::massContExplicitStep() {
         } else{
           // no surface mass balance here
           vHrefGround(i,j) -= divQ * dt;
-          if (vHrefGround(i,j)*(1-rhoq) < vbed(i,j)){
-            vHrefGround(i,j) -= shelfbmassflux(i,j);
-            vTestVar(i,j) = shelfbmassflux(i,j);
+          vTestVar(i,j)     = 0.0;
+          if (vHrefGround(i,j)*(1-rhoq) < -vbed(i,j)){
+            PetscSynchronizedPrintf(grid.com,"HrefG*(1-rhoq)=%e vbed=%e at i=%d, j=%d\n",vHrefGround(i,j)*(1-rhoq),vbed(i,j),i,j);
+            PetscReal meltarea = vHrefGround(i,j)/vHavgGround(i,j);
+            vHrefGround(i,j)  -= shelfbmassflux(i,j)*meltarea;
+            vTestVar(i,j) = shelfbmassflux(i,j)*meltarea;
           }
         }
 
