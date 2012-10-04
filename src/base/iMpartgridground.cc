@@ -64,26 +64,28 @@ PetscReal IceModel::get_average_thickness_fg(planeStar<int> M, planeStar<PetscSc
     H_average = 200.0;
   }
 
-  if( m.grounded_ice(M.ij)){
-    PetscReal h_average = 0.0;
-    PetscReal H_average_FromBed = 0.0;
-    N = 0;
-    if (m.grounded_ice(M.e)) { h_average += h.e; N++; }
-    if (m.grounded_ice(M.w)) { h_average += h.w; N++; }
-    if (m.grounded_ice(M.n)) { h_average += h.n; N++; }
-    if (m.grounded_ice(M.s)) { h_average += h.s; N++; }
+  //
+  //if( m.grounded_ice(M.ij) ){
+  PetscReal h_average = 0.0;
+  PetscReal H_average_FromBed = 0.0;
+  N = 0;
+  if (m.grounded_ice(M.e)) { h_average += h.e; N++; }
+  if (m.grounded_ice(M.w)) { h_average += h.w; N++; }
+  if (m.grounded_ice(M.n)) { h_average += h.n; N++; }
+  if (m.grounded_ice(M.s)) { h_average += h.s; N++; }
 
-    // ice thickness is difference between elevation and bed
-    if (N > 0) {
-      H_average_FromBed = h_average / N - bed_ij;
-    } else {
-      // assume constant H_average for isolated cells
-      H_average_FromBed = 200.0 - bed_ij;
-    }
-
-    // decide on which Href to use, this is usually H_average for downward sloping and H_average_FromBed for upward sloping ground.
-    H_average = PetscMin(H_average, H_average_FromBed);
+  // ice thickness is difference between elevation and bed
+  if (N > 0) {
+    H_average_FromBed = h_average / N - bed_ij;
+  } else {
+    // assume constant H_average for isolated cells
+    H_average_FromBed = 200.0 - bed_ij;
   }
+
+  // decide on which Href to use, this is usually H_average for downward sloping and H_average_FromBed for upward sloping ground.
+  PetscSynchronizedPrintf(grid.com,"Havg=%e, Havg_bed=%e, bed=%e",H_average, H_average_FromBed,bed_ij);
+  H_average = PetscMin(H_average, H_average_FromBed);
+  //}
 
   PetscReal Qssa_max      = 0.0;
   PetscReal sum_max       = 0.0;

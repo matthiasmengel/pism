@@ -370,7 +370,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
         divQ = (Q.e - Q.w) / dx + (Q.n - Q.s) / dy;
       }
 
-      planeStar<int> M = vMask.int_star(i, j);
+      planeStar<int> Msk = vMask.int_star(i, j);
 
       // get non-diffusive velocities according to old or -part_grid scheme
       planeStar<PetscScalar> v;
@@ -418,7 +418,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
           ierr = verbPrintf(2, grid.com,"!!! PISM_WARNING: vHref is negative at i=%d, j=%d\n",i,j); CHKERRQ(ierr);
         }
 
-        PetscReal H_average = get_average_thickness(do_redist, M, vH.star(i, j));
+        PetscReal H_average = get_average_thickness(do_redist, Msk, vH.star(i, j));
 
         // To calculate the surface balance contribution with respect to the
         // coverage ratio, let  X = vHref_new  be the new value of Href.  We assume
@@ -448,7 +448,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
 
       } else if ( do_part_grid_ground && mask.next_to_grounded_ice(i, j) ) {
         // calc part grid criterum from surrounding boxes
-        vHavgGround(i,j) = get_average_thickness_fg(M, vH.star(i, j), vh.star(i,j), Q, Qssa, vbed(i,j), coeff);
+        vHavgGround(i,j) = get_average_thickness_fg(Msk, vH.star(i, j), vh.star(i,j), Q, Qssa, vbed(i,j), coeff);
         vPartGridCoeff(i,j) = coeff;
 
         if( vHrefGround(i,j) > vHavgGround(i,j) ){
