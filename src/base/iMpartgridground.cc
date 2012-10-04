@@ -32,7 +32,7 @@
 
 PetscReal IceModel::get_average_thickness_fg(planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h,
                                              planeStar<PetscScalar> Q, planeStar<PetscScalar> Qssa, PetscReal bed_ij,
-                                             PetscScalar &sia_ssa_coeff, PetscReal shelfbmflux, PetscScalar &testvar) {
+                                             PetscScalar &sia_ssa_coeff) {
   PetscErrorCode ierr;
   bool margin_coeff_set;
   PetscReal margin_coeff;
@@ -42,12 +42,6 @@ PetscReal IceModel::get_average_thickness_fg(planeStar<int> M, planeStar<PetscSc
     CHKERRQ(ierr);
     PISMEnd();
   }
-
-  PetscReal ice_rho   = config.get("ice_density"),
-            ocean_rho = config.get("sea_water_density"),
-            rhoq      = ice_rho/ocean_rho;
-
-//   ierr = vTestVar.begin_access(); CHKERRQ(ierr);
 
   Mask m;
   PetscInt N = 0;
@@ -104,12 +98,7 @@ PetscReal IceModel::get_average_thickness_fg(planeStar<int> M, planeStar<PetscSc
   } else {
     sia_ssa_coeff = 1.0;
   }
-  testvar = 0.0;
-  if (H_average*(1-rhoq) < bed_ij){
-    ierr = verbPrintf(2, grid.com,"bed=%e, Havg below water=%e, shelfbm=%e\n",bed_ij,H_average*(1-rhoq),shelfbmflux); CHKERRQ(ierr);
-    H_average -= shelfbmflux;
-    testvar    = -shelfbmflux;
-  }
+
   return H_average * sia_ssa_coeff;
 }
 

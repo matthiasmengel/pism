@@ -273,6 +273,11 @@ PetscErrorCode IceModel::massContExplicitStep() {
     ierr = gl_mask.begin_access(); CHKERRQ(ierr);
    }
 
+  PetscReal ice_rho   = config.get("ice_density"),
+        ocean_rho = config.get("sea_water_density"),
+        rhoq      = ice_rho/ocean_rho;
+
+
   IceModelVec2S vHnew = vWork2d[0];
   ierr = vH.copy_to(vHnew); CHKERRQ(ierr);
 
@@ -353,7 +358,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
   for (PetscInt i = grid.xs; i < grid.xs + grid.xm; ++i) {
     for (PetscInt j = grid.ys; j < grid.ys + grid.ym; ++j) {
 
-      PetscScalar coeff = 0.0, testvar = 0.0;
+      PetscScalar coeff = 0.0;
       PetscScalar divQ  = 0.0;
       planeStar<PetscScalar> Q;
       planeStar<PetscScalar> Qssa;
@@ -444,10 +449,8 @@ PetscErrorCode IceModel::massContExplicitStep() {
 
       } else if ( do_part_grid_ground && mask.next_to_grounded_ice(i, j) ) {
         // calc part grid criterum from surrounding boxes
-        vHavgGround(i,j) = get_average_thickness_fg(M, vH.star(i, j), vh.star(i,j), Q, Qssa, vbed(i,j), coeff, shelfbmassflux(i,j), testvar);
+        vHavgGround(i,j) = get_average_thickness_fg(M, vH.star(i, j), vh.star(i,j), Q, Qssa, vbed(i,j), coeff);
         vPartGridCoeff(i,j) = coeff;
-        vTestVar(i,j) = testvar;
-
 
         if( vHrefGround(i,j) > PetscMax(vHavgGround(i,j), vHrefThresh(i,j)) ){
           // partial grid cell --> ice filled cell
@@ -461,6 +464,10 @@ PetscErrorCode IceModel::massContExplicitStep() {
         } else{
           // no surface mass balance here
           vHrefGround(i,j) -= divQ * dt;
+          if (vHrefGround(i,j)*(1-rhoq) < vbed(i,j)){
+            vHrefGround(i,j) -= shelfbmassflux(i,j);
+            vTestVar(i,j) = shelfbmassflux(i,j);
+          }
         }
 
       } else if (mask.grounded(i, j) || mask.floating_ice(i, j)){
