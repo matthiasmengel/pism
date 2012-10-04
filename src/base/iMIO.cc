@@ -458,6 +458,14 @@ PetscErrorCode IceModel::initFromFile(string filename) {
       ierr = vJustGotFullCell.set_attr("pism_intent", "diagnostic"); CHKERRQ(ierr);
       ierr = vJustGotFullCell.set(0.0); CHKERRQ(ierr);
     }
+    ierr = nc.inq_var("TestVar", exists); CHKERRQ(ierr);
+    if (!exists) {
+      ierr = verbPrintf(2, grid.com,
+        "PISM WARNING: TestVar for -part_grid_ground not found in %s. Setting it to zero...\n",
+        filename.c_str()); CHKERRQ(ierr);
+      ierr = vTestVar.set_attr("pism_intent", "diagnostic"); CHKERRQ(ierr);
+      ierr = vTestVar.set(0.0); CHKERRQ(ierr);
+    }
   }
 
   // Find the index of the last record in the file:
@@ -549,6 +557,7 @@ PetscErrorCode IceModel::initFromFile(string filename) {
     ierr = vHrefThresh.set_attr("pism_intent", "model_state"); CHKERRQ(ierr);
     ierr = vPartGridCoeff.set_attr("pism_intent", "model_state"); CHKERRQ(ierr);
     ierr = vJustGotFullCell.set_attr("pism_intent", "model_state"); CHKERRQ(ierr);
+    ierr = vTestVar.set_attr("pism_intent", "model_state"); CHKERRQ(ierr);
   }
 
   string history;

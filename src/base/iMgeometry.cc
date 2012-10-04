@@ -322,6 +322,8 @@ PetscErrorCode IceModel::massContExplicitStep() {
     ierr = vHavgGround.begin_access(); CHKERRQ(ierr);
     ierr = vHrefThresh.begin_access(); CHKERRQ(ierr);
     ierr = vPartGridCoeff.begin_access(); CHKERRQ(ierr);
+    ierr = vTestVar.begin_access(); CHKERRQ(ierr);
+
   }
 
   const bool dirichlet_bc = config.get_flag("ssa_dirichlet_bc");
@@ -351,7 +353,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
   for (PetscInt i = grid.xs; i < grid.xs + grid.xm; ++i) {
     for (PetscInt j = grid.ys; j < grid.ys + grid.ym; ++j) {
 
-      PetscScalar coeff = 0.0;
+      PetscScalar coeff = 0.0, testvar = 0.0;
       PetscScalar divQ  = 0.0;
       planeStar<PetscScalar> Q;
       planeStar<PetscScalar> Qssa;
@@ -442,8 +444,10 @@ PetscErrorCode IceModel::massContExplicitStep() {
 
       } else if ( do_part_grid_ground && mask.next_to_grounded_ice(i, j) ) {
         // calc part grid criterum from surrounding boxes
-        vHavgGround(i,j) = get_average_thickness_fg(M, vH.star(i, j), vh.star(i,j), Q, Qssa, vbed(i,j), coeff, shelfbmassflux(i,j));
+        vHavgGround(i,j) = get_average_thickness_fg(M, vH.star(i, j), vh.star(i,j), Q, Qssa, vbed(i,j), coeff, shelfbmassflux(i,j), testvar);
         vPartGridCoeff(i,j) = coeff;
+        vTestVar(i,j) = testvar;
+
 
         if( vHrefGround(i,j) > PetscMax(vHavgGround(i,j), vHrefThresh(i,j)) ){
           // partial grid cell --> ice filled cell
@@ -600,6 +604,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
     ierr = vHrefThresh.end_access(); CHKERRQ(ierr);
     ierr = vJustGotFullCell.end_access(); CHKERRQ(ierr);
     ierr = vPartGridCoeff.end_access(); CHKERRQ(ierr);
+    ierr = vTestVar.end_access(); CHKERRQ(ierr);
   }
 
   if (dirichlet_bc) {

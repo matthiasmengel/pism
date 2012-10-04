@@ -435,6 +435,9 @@ PetscErrorCode IceModel::createVecs() {
     ierr = vPartGridCoeff.create(grid, "PartGridCoeff", true); CHKERRQ(ierr);
     ierr = vPartGridCoeff.set_attrs("diagnostic", "coefficient that determines HavgGround", "", ""); CHKERRQ(ierr);
     ierr = variables.add(vPartGridCoeff); CHKERRQ(ierr);
+    ierr = vTestVar.create(grid, "TestVar", true); CHKERRQ(ierr);
+    ierr = vTestVar.set_attrs("diagnostic", "a variable for testing", "", ""); CHKERRQ(ierr);
+    ierr = variables.add(vTestVar); CHKERRQ(ierr);
   }
 
   if (config.get_flag("do_eigen_calving") == true || config.get_flag("do_fracture_density")== true) {

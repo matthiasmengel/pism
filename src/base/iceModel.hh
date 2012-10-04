@@ -239,6 +239,7 @@ protected:
         vHavgGround,    //!< height attributed to grounded partial cell from neighbouring ice thicknesses.
         vPartGridCoeff,   //!< coefficient that determines vHavgGround
         vJustGotFullCell, //!< stores if a partial grounded cell got full in last timestep.
+        vTestVar, //!< for testing.
         vPrinStrain1,   //!< major principal component of horizontal strain-rate tensor
         vPrinStrain2,   //!< minor principal component of horizontal strain-rate tensor
 
@@ -395,7 +396,7 @@ protected:
   virtual PetscErrorCode calculateRedistResiduals();
 
   // see iMpartgridground.cc
-  PetscReal get_average_thickness_fg(planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h, planeStar<PetscScalar> Q, planeStar<PetscScalar> Qssa, PetscReal bed_ij, PetscScalar &sia_ssa_coeff, PetscReal shelfbmflux);
+  PetscReal get_average_thickness_fg(planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h, planeStar<PetscScalar> Q, planeStar<PetscScalar> Qssa, PetscReal bed_ij, PetscScalar &sia_ssa_coeff, PetscReal shelfbmflux, PetscScalar &testvar);
   virtual PetscErrorCode killLonelyPGGCells();
 
   // see iMreport.cc
