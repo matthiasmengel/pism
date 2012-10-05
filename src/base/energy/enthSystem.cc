@@ -20,6 +20,7 @@
 #include <gsl/gsl_math.h>
 #include "NCVariable.hh"
 #include "iceModelVec.hh"
+#include "Mask.hh"
 
 enthSystemCtx::enthSystemCtx(const NCConfigVariable &config,
                              IceModelVec3 &my_Enth3, int my_Mz, string my_prefix)
@@ -64,7 +65,7 @@ enthSystemCtx::~enthSystemCtx() {
 }
 
 
-PetscErrorCode enthSystemCtx::initAllColumns(PetscScalar my_dx,  PetscScalar my_dy, 
+PetscErrorCode enthSystemCtx::initAllColumns(PetscScalar my_dx,  PetscScalar my_dy,
                                              PetscScalar my_dtTemp,  PetscScalar my_dzEQ) {
   dx     = my_dx;
   dy     = my_dy;
@@ -85,7 +86,7 @@ PetscScalar enthSystemCtx::k_from_T(PetscScalar /*T*/) {
 }
 
 
-PetscErrorCode enthSystemCtx::initThisColumn(bool my_ismarginal,
+PetscErrorCode enthSystemCtx::initThisColumn(bool my_ismarginal, planeStar<int> my_Msk,
                                              PetscScalar my_lambda,
                                              PetscReal /*ice_thickness*/) {
 #if (PISM_DEBUG==1)
@@ -97,7 +98,7 @@ PetscErrorCode enthSystemCtx::initThisColumn(bool my_ismarginal,
 #endif
   ismarginal = my_ismarginal;
   lambda = my_lambda;
-
+  Msk = my_Msk;
   PetscErrorCode ierr =  assemble_R(); CHKERRQ(ierr);
   return 0;
 }
@@ -126,7 +127,7 @@ PetscErrorCode enthSystemCtx::viewConstants(
   PetscBool iascii;
   ierr = PetscTypeCompare((PetscObject)viewer,PETSCVIEWERASCII,&iascii); CHKERRQ(ierr);
   if (!iascii) { SETERRQ(PETSC_COMM_SELF, 1,"Only ASCII viewer for enthSystemCtx::viewConstants()\n"); }
-  
+
   ierr = PetscViewerASCIIPrintf(viewer,
                    "\n<<VIEWING enthSystemCtx with prefix '%s':\n",prefix.c_str()); CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,
@@ -142,7 +143,7 @@ PetscErrorCode enthSystemCtx::viewConstants(
                      nuEQ); CHKERRQ(ierr);
   ierr = PetscViewerASCIIPrintf(viewer,
                      "  iceRcold,iceRtemp = %10.3e,%10.3e,\n",
-		     iceRcold,iceRtemp); CHKERRQ(ierr);
+         iceRcold,iceRtemp); CHKERRQ(ierr);
   if (show_col_dependent) {
     ierr = PetscViewerASCIIPrintf(viewer,
                      "for THIS column:\n"
@@ -231,22 +232,29 @@ PetscErrorCode enthSystemCtx::setBasalHeatFlux(PetscScalar hf) {
     Rplus  = 0.5 * (Rc + Rr);
   a0 = 1.0 + Rminus + Rplus;  // = D[0]
   a1 = - Rminus - Rplus;      // = U[0]
-  // next line says 
+  // next line says
   //   (E(+dz) - E(-dz)) / (2 dz) = Y
   // or equivalently
   //   E(-dz) = E(+dz) + X
   const PetscScalar X = - 2.0 * dzEQ * Y;
   // zero vertical velocity contribution
   b = Enth[0] + Rminus * X;   // = rhs[0]
+
+  planeStar<PetscScalar> ss;
+
+  ierr = Enth3->getPlaneStar_fine(i,j,0,&ss); CHKERRQ(ierr);
+
   if (!ismarginal) {
-    planeStar<PetscScalar> ss;
-    ierr = Enth3->getPlaneStar_fine(i,j,0,&ss); CHKERRQ(ierr);
-    const PetscScalar UpEnthu = (u[0] < 0) ? u[0] * (ss.e -  ss.ij) / dx :
+  UpEnthu = (u[0] < 0) ? u[0] * (ss.e -  ss.ij) / dx :
                                              u[0] * (ss.ij  - ss.w) / dx;
-    const PetscScalar UpEnthv = (v[0] < 0) ? v[0] * (ss.n -  ss.ij) / dy :
+  UpEnthv = (v[0] < 0) ? v[0] * (ss.n -  ss.ij) / dy :
                                              v[0] * (ss.ij  - ss.s) / dy;
-    b += dtTemp * ((Sigma[0] / ice_rho) - UpEnthu - UpEnthv);  // = rhs[0]
+  } else {
+    ierr = getMarginalEnth(ss, u[0], v[0], Msk, UpEnthu, UpEnthv); CHKERRQ(ierr);
   }
+
+  b += dtTemp * ((Sigma[0] / ice_rho) - UpEnthu - UpEnthv);  // = rhs[0]
+
   return 0;
 }
 
@@ -259,7 +267,7 @@ with time steps \f$\Delta t\f$ and spatial steps \f$\Delta z\f$ we define
 This is used in an implicit method to write each line in the linear system, for
 example [\ref MortonMayers]:
   \f[ -R U_{j-1}^{n+1} + (1+2R) U_j^{n+1} - R U_{j+1}^{n+1} = U_j^n. \f]
-  
+
 In the case of conservation of energy [\ref AschwandenBuelerKhroulevBlatter],
   \f[ u=E \qquad \text{ and } \qquad D = \frac{K}{\rho} \qquad \text{ and } \qquad K = \frac{k}{c}. \f]
 Thus
@@ -314,15 +322,21 @@ PetscErrorCode enthSystemCtx::solveThisColumn(PetscScalar **x, PetscErrorCode &p
       U[k] += AA * (1.0 - lambda/2.0);
     }
     rhs[k] = Enth[k];
+
+    planeStar<PetscScalar> ss;
+    ierr = Enth3->getPlaneStar_fine(i,j,0,&ss); CHKERRQ(ierr);
+
     if (!ismarginal) {
-      planeStar<PetscScalar> ss;
-      ierr = Enth3->getPlaneStar_fine(i,j,k,&ss); CHKERRQ(ierr);
-      const PetscScalar UpEnthu = (u[k] < 0) ? u[k] * (ss.e -  ss.ij) / dx :
+      UpEnthu = (u[k] < 0) ? u[k] * (ss.e -  ss.ij) / dx :
                                                u[k] * (ss.ij  - ss.w) / dx;
-      const PetscScalar UpEnthv = (v[k] < 0) ? v[k] * (ss.n -  ss.ij) / dy :
+      UpEnthv = (v[k] < 0) ? v[k] * (ss.n -  ss.ij) / dy :
                                                v[k] * (ss.ij  - ss.s) / dy;
-      rhs[k] += dtTemp * ((Sigma[k] / ice_rho) - UpEnthu - UpEnthv);
+    } else {
+      ierr = getMarginalEnth(ss, u[k], v[k], Msk, UpEnthu, UpEnthv); CHKERRQ(ierr);
     }
+
+    rhs[k] += dtTemp * ((Sigma[k] / ice_rho) - UpEnthu - UpEnthv);
+
   }
 
   // set Dirichlet boundary condition at top
@@ -361,5 +375,28 @@ PetscErrorCode enthSystemCtx::viewSystem(PetscViewer viewer) const {
   ierr = viewVectorValues(viewer,rhs,nmax,info.c_str()); CHKERRQ(ierr);
   info = prefix + "_R";
   ierr = viewVectorValues(viewer,&R[0],Mz,info.c_str()); CHKERRQ(ierr);
+  return 0;
+}
+
+PetscErrorCode enthSystemCtx::getMarginalEnth(planeStar<PetscScalar> ss, PetscScalar u0, PetscScalar v0,
+                                              planeStar<int> M,
+                                              PetscScalar &UpEnthu, PetscScalar &UpEnthv) {
+  Mask m;
+
+  if (u0 < 0 && !m.ice_free(M.e)){
+    UpEnthu = u0 * (ss.e -  ss.ij) / dx;
+  } else if (u0 > 0  && !m.ice_free(M.w)){
+    UpEnthu = u0 * (ss.ij -  ss.w) / dx;
+  } else {
+    UpEnthu = 0.0;
+  }
+
+  if (v0 < 0 && !m.ice_free(M.n)){
+    UpEnthv = v0 * (ss.n -  ss.ij) / dx;
+  } else if (v0 > 0  && !m.ice_free(M.s)){
+    UpEnthv = v0 * (ss.ij -  ss.s) / dx;
+  } else {
+    UpEnthv = 0.0;
+  }
   return 0;
 }

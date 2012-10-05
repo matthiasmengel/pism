@@ -33,7 +33,7 @@ varenthSystemCtx::varenthSystemCtx(const NCConfigVariable &config,
     k_depends_on_T = true;
   else
     k_depends_on_T = false;
-        
+
 }
 
 
@@ -46,17 +46,17 @@ PetscScalar varenthSystemCtx::k_from_T(PetscScalar T) {
 }
 
 
-PetscErrorCode varenthSystemCtx::initThisColumn(bool my_ismarginal,
+PetscErrorCode varenthSystemCtx::initThisColumn(bool my_ismarginal, planeStar<int> my_Msk,
                                                  PetscScalar my_lambda,
                                                  PetscReal my_ice_thickness) {
   PetscErrorCode ierr;
-  ierr = enthSystemCtx::initThisColumn(my_ismarginal, my_lambda,
+  ierr = enthSystemCtx::initThisColumn(my_ismarginal, my_Msk, my_lambda,
                                        my_ice_thickness); CHKERRQ(ierr);
 
   ice_thickness = my_ice_thickness;
   return 0;
 }
-  
+
 
 //! \brief Assemble the R array for the current column, in the case with temperature-dependent properties.
 /*!

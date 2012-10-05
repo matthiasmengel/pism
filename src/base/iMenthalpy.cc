@@ -37,7 +37,7 @@ First this method makes sure the temperatures is at most the pressure-melting
 value, before computing the enthalpy for that temperature, using zero liquid
 fraction.
 
-Because of how EnthalpyConverter::getPressureFromDepth() works, the energy 
+Because of how EnthalpyConverter::getPressureFromDepth() works, the energy
 content in the air is set to the value that ice would have if it a chunk of it
 occupied the air; the atmosphere actually has much lower energy content.  It is
 done this way for regularity (i.e. dEnth/dz computations).
@@ -46,7 +46,7 @@ Because Enth3 gets set, does ghost communication to finish.
  */
 PetscErrorCode IceModel::compute_enthalpy_cold(IceModelVec3 &temperature, IceModelVec3 &result) {
   PetscErrorCode ierr;
-  
+
   ierr = temperature.begin_access(); CHKERRQ(ierr);
   ierr = result.begin_access(); CHKERRQ(ierr);
   ierr = vH.begin_access(); CHKERRQ(ierr);
@@ -82,7 +82,7 @@ PetscErrorCode IceModel::compute_enthalpy(IceModelVec3 &temperature,
                                           IceModelVec3 &liquid_water_fraction,
                                           IceModelVec3 &result) {
   PetscErrorCode ierr;
-  
+
   ierr = temperature.begin_access(); CHKERRQ(ierr);
   ierr = liquid_water_fraction.begin_access(); CHKERRQ(ierr);
   ierr = result.begin_access(); CHKERRQ(ierr);
@@ -185,13 +185,13 @@ PetscErrorCode IceModel::setCTSFromEnthalpy(IceModelVec3 &useForCTS) {
 
 //! Compute the CTS value of enthalpy in an ice column.
 /*!
-Return argument Enth_s[Mz] has the enthalpy value for the pressure-melting 
+Return argument Enth_s[Mz] has the enthalpy value for the pressure-melting
 temperature at the corresponding z level.
  */
 PetscErrorCode IceModel::getEnthalpyCTSColumn(PetscScalar p_air,
-					      PetscScalar thk,
-					      PetscInt ks,
-					      PetscScalar **Enth_s) {
+                PetscScalar thk,
+                PetscInt ks,
+                PetscScalar **Enth_s) {
 
   for (PetscInt k = 0; k <= ks; k++) {
     const PetscScalar p = EC->getPressureFromDepth(thk - grid.zlevels_fine[k]); // FIXME issue #15
@@ -210,19 +210,19 @@ PetscErrorCode IceModel::getEnthalpyCTSColumn(PetscScalar p_air,
 See page \ref bombproofenth.
  */
 PetscErrorCode IceModel::getlambdaColumn(PetscInt ks,
-					 PetscScalar ice_rho_c,
+           PetscScalar ice_rho_c,
                                          PetscScalar ice_k,
-					 const PetscScalar *Enth,
-					 const PetscScalar *Enth_s,
-					 const PetscScalar *w,
-					 PetscScalar *lambda) {
+           const PetscScalar *Enth,
+           const PetscScalar *Enth_s,
+           const PetscScalar *w,
+           PetscScalar *lambda) {
 
   *lambda = 1.0;  // start with centered implicit for more accuracy
   for (PetscInt k = 0; k <= ks; k++) {
     if (Enth[k] > Enth_s[k]) { // lambda = 0 if temperate ice present in column
       *lambda = 0.0;
     } else {
-      const PetscScalar 
+      const PetscScalar
           denom = (PetscAbs(w[k]) + 0.000001/secpera) * ice_rho_c * grid.dz_fine;
       *lambda = PetscMin(*lambda, 2.0 * ice_k / denom);
     }
@@ -236,7 +236,7 @@ PetscErrorCode IceModel::getlambdaColumn(PetscInt ks,
 This method is documented by the page \ref bombproofenth and by [\ref
 AschwandenBuelerKhroulevBlatter].
 
-This method updates IceModelVec3 vWork3d = vEnthnew, IceModelVec2S vbmr, and 
+This method updates IceModelVec3 vWork3d = vEnthnew, IceModelVec2S vbmr, and
 IceModelVec2S vbwat.  No communication of ghosts is done for any of these fields.
 
 We use an instance of enthSystemCtx.
@@ -256,7 +256,7 @@ PetscErrorCode IceModel::enthalpyAndDrainageStep(
   const PetscReal dt_secs = dt_TempAge;
 
   // get fine grid levels in ice
-  PetscInt    fMz = grid.Mz_fine;  
+  PetscInt    fMz = grid.Mz_fine;
   PetscScalar fdz = grid.dz_fine;
   vector<double> &fzlev = grid.zlevels_fine;
 
@@ -278,12 +278,12 @@ PetscErrorCode IceModel::enthalpyAndDrainageStep(
     bwat_max        = config.get("bwat_max");          // m
 
   DrainageCalculator dc(config);
-  
+
   IceModelVec2S *Rb;
   IceModelVec3 *u3, *v3, *w3, *Sigma3;
   ierr = stress_balance->get_basal_frictional_heating(Rb); CHKERRQ(ierr);
   ierr = stress_balance->get_3d_velocity(u3, v3, w3); CHKERRQ(ierr);
-  ierr = stress_balance->get_volumetric_strain_heating(Sigma3); CHKERRQ(ierr); 
+  ierr = stress_balance->get_volumetric_strain_heating(Sigma3); CHKERRQ(ierr);
 
   PetscScalar *Enthnew;
   Enthnew = new PetscScalar[fMz];  // new enthalpy in column
@@ -372,6 +372,7 @@ PetscErrorCode IceModel::enthalpyAndDrainageStep(
         SETERRQ(grid.com, 1, "invalid ks");
       }
 #endif
+      planeStar<int> Msk = vMask.int_star(i, j);
 
       const bool ice_free_column = (ks == 0),
                  is_floating     = mask.ocean(i,j);
@@ -420,7 +421,7 @@ PetscErrorCode IceModel::enthalpyAndDrainageStep(
         // if there is subglacial water, don't allow ice base enthalpy to be below
         // pressure-melting; that is, assume subglacial water is at the pressure-
         // melting temperature and enforce continuity of temperature
-        if ((vbwat(i,j) > 0.0) && (esys->Enth[0] < esys->Enth_s[0])) { 
+        if ((vbwat(i,j) > 0.0) && (esys->Enth[0] < esys->Enth_s[0])) {
           esys->Enth[0] = esys->Enth_s[0];
         }
 
@@ -466,7 +467,7 @@ PetscErrorCode IceModel::enthalpyAndDrainageStep(
         ierr = v3->getValColumn(i,j,ks,esys->v); CHKERRQ(ierr);
         ierr = Sigma3->getValColumn(i,j,ks,esys->Sigma); CHKERRQ(ierr);
 
-        ierr = esys->initThisColumn(isMarginal, lambda, vH(i, j)); CHKERRQ(ierr);
+        ierr = esys->initThisColumn(isMarginal, Msk, lambda, vH(i, j)); CHKERRQ(ierr);
         ierr = esys->setBoundaryValuesThisColumn(Enth_ks); CHKERRQ(ierr);
 
         // determine lowest-level equation at bottom of ice; see decision chart
@@ -549,7 +550,7 @@ PetscErrorCode IceModel::enthalpyAndDrainageStep(
         const PetscReal lowerEnthLimit = Enth_ks - bulgeEnthMax;
         for (PetscInt k=0; k < ks; k++) {
           if (Enthnew[k] < lowerEnthLimit) {
-            *bulgeCount += 1;      // count the columns which have very large cold 
+            *bulgeCount += 1;      // count the columns which have very large cold
             Enthnew[k] = lowerEnthLimit;  // limit advection bulge ... enthalpy not too low
           }
         }
@@ -568,8 +569,8 @@ PetscErrorCode IceModel::enthalpyAndDrainageStep(
         }
 
       } // end explicit scoping
-      
-      donewithcolumn: 
+
+      donewithcolumn:
       { }  // odd thing: something needs to follow goto target to get compilation
 
     }

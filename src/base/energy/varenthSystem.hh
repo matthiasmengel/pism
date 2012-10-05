@@ -38,9 +38,8 @@ public:
 
   PetscScalar k_from_T(PetscScalar T);
 
-  PetscErrorCode initThisColumn(bool my_ismarginal,
-                                PetscScalar my_lambda,
-                                PetscReal ice_thickness);  
+  PetscErrorCode initThisColumn(bool my_ismarginal, planeStar<int> my_Msk,
+                                PetscScalar my_lambda, PetscReal ice_thickness);
 protected:
   virtual PetscErrorCode assemble_R();
   EnthalpyConverter *EC;  // conductivity has known dependence on T, not enthalpy

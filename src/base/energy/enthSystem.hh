@@ -20,7 +20,7 @@
 #define __enthSystem_hh
 
 #include <vector>
-
+#include "iceModelVec.hh"
 #include "columnSystem.hh"
 
 class NCConfigVariable;
@@ -29,10 +29,10 @@ class IceModelVec3;
 //! Tridiagonal linear system for conservation of energy in vertical column of ice enthalpy.
 /*!
 See the page documenting \ref bombproofenth.  The top of
-the ice has a Dirichlet condition.  
+the ice has a Dirichlet condition.
 
 FIXME:  IS THIS THE RIGHT STRUCTURE?:  The boundary condition at the bottom of the
-ice depends on various cases, and these cases are not decided here.  Instead, 
+ice depends on various cases, and these cases are not decided here.  Instead,
 the user of this class sets the lowest-level (z=0) equation.
 */
 class enthSystemCtx : public columnSystemCtx {
@@ -41,12 +41,12 @@ public:
   enthSystemCtx(const NCConfigVariable &config, IceModelVec3 &my_Enth3, int my_Mz, string my_prefix);
   virtual ~enthSystemCtx();
 
-  PetscErrorCode initAllColumns(PetscScalar my_dx, PetscScalar my_dy, 
+  PetscErrorCode initAllColumns(PetscScalar my_dx, PetscScalar my_dy,
                                 PetscScalar my_dtTemp, PetscScalar my_dzEQ);
 
-  PetscErrorCode initThisColumn(bool my_ismarginal,
+  PetscErrorCode initThisColumn(bool my_ismarginal, planeStar<int> M,
                                 PetscScalar my_lambda,
-                                PetscReal ice_thickness);  
+                                PetscReal ice_thickness);
 
   PetscScalar k_from_T(PetscScalar T);
 
@@ -70,15 +70,20 @@ public:
 protected:
   PetscInt     Mz;
   PetscScalar  ice_rho, ice_c, ice_k, ice_K, ice_K0,
-               dx, dy, dtTemp, dzEQ, nuEQ, iceK, iceRcold, iceRtemp;
+               dx, dy, dtTemp, dzEQ, nuEQ, iceK, iceRcold, iceRtemp,
+               UpEnthu, UpEnthv;
   IceModelVec3 *Enth3;
   PetscScalar  lambda, Enth_ks, a0, a1, b;
   bool         ismarginal;
+  planeStar<int> Msk;
   vector<PetscScalar> R; // value of k \Delta t / (\rho c \Delta x^2) in
                          // column, using current values of enthalpy
 
   virtual PetscErrorCode assemble_R();
   PetscErrorCode checkReadyToSolve();
+  PetscErrorCode getMarginalEnth(planeStar<PetscScalar> ss, PetscScalar u0, PetscScalar v0,
+                                              planeStar<int> M,
+                                              PetscScalar &UpEnthu, PetscScalar &UpEnthv);
 };
 
 #endif   //  ifndef __enthSystem_hh
