@@ -1,5 +1,7 @@
 .gitignore
 build/
+lib/
+bin/
 *.nc
 *~
 *.dat

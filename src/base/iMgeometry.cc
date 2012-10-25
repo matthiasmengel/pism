@@ -25,6 +25,7 @@
 #include "PISMOcean.hh"
 #include "PISMSurface.hh"
 #include "PISMStressBalance.hh"
+#include "pism_options.hh"
 
 //! \file iMgeometry.cc Methods of IceModel which update and maintain consistency of ice sheet geometry.
 
@@ -541,6 +542,8 @@ PetscErrorCode IceModel::massContExplicitStep() {
   ierr = shelfbmassflux.begin_access(); CHKERRQ(ierr);
   ierr = vMask.begin_access();  CHKERRQ(ierr);
   ierr = vHnew.begin_access(); CHKERRQ(ierr);
+  ierr = vh.begin_access(); CHKERRQ(ierr);
+  ierr = vbed.begin_access(); CHKERRQ(ierr);
 
   // related to PIK part_grid mechanism; see Albrecht et al 2011
   const bool do_part_grid = config.get_flag("part_grid"),
@@ -554,6 +557,16 @@ PetscErrorCode IceModel::massContExplicitStep() {
       ierr = vHresidual.set(0.0); CHKERRQ(ierr);
     }
   }
+
+  PetscReal pgg_coeff = 0.66; // value from analytical sia flat bed solution
+  const bool do_pgg = config.get_flag("do_pgg");
+  const bool do_const_pgg = config.get_flag("do_const_pgg");
+  if (do_pgg) {
+    ierr = vHpggstore.begin_access(); CHKERRQ(ierr);
+    bool pgg_coeff_set;
+    ierr = PISMOptionsReal("-pgg_coeff", "specifies the ratio of partially filled grid box height to its surrounding neighbours", pgg_coeff,  pgg_coeff_set); CHKERRQ(ierr);
+  }
+
   const bool dirichlet_bc = config.get_flag("ssa_dirichlet_bc");
   if (dirichlet_bc) {
     ierr = vBCMask.begin_access();  CHKERRQ(ierr);
@@ -579,20 +592,22 @@ PetscErrorCode IceModel::massContExplicitStep() {
       // Source terms:
       double
         surface_mass_balance = acab(i, j),
-        meltrate_grounded = 0.0,
-        meltrate_floating = 0.0,
-        H_to_Href_flux    = 0.0,
-        Href_to_H_flux    = 0.0,
-        ocean_kill_flux   = 0.0,
-        float_kill_flux   = 0.0,
-        nonneg_rule_flux  = 0.0;
+        meltrate_grounded    = 0.0,
+        meltrate_floating    = 0.0,
+        H_to_Href_flux       = 0.0,
+        Href_to_H_flux       = 0.0,
+        H_to_Hpggstore_flux  = 0.0,
+        Hpggstore_to_H_flux  = 0.0,
+        ocean_kill_flux      = 0.0,
+        float_kill_flux      = 0.0,
+        nonneg_rule_flux     = 0.0;
 
       if (include_bmr_in_continuity) {
         meltrate_floating = shelfbmassflux(i, j);
         meltrate_grounded = vbmr(i, j);
       }
 
-      planeStar<PetscScalar> Q, v;
+      planeStar<PetscScalar> Q, Qssa, v;
       cell_interface_fluxes(dirichlet_bc, i, j,
                             vel_advective->star(i, j), Qdiff->star(i, j),
                             v, Q);
@@ -605,10 +620,18 @@ PetscErrorCode IceModel::massContExplicitStep() {
 
         // Plug flow part (i.e. basal sliding; from SSA): upwind by staggered grid
         // PIK method;  this is   \nabla \cdot [(u, v) H]
-        divQ_SSA += ( v.e * (v.e > 0 ? vH(i, j) : vH(i + 1, j))
-                      - v.w * (v.w > 0 ? vH(i - 1, j) : vH(i, j)) ) / dx;
-        divQ_SSA += ( v.n * (v.n > 0 ? vH(i, j) : vH(i, j + 1))
-                      - v.s * (v.s > 0 ? vH(i, j - 1) : vH(i, j)) ) / dy;
+        //divQ_SSA += ( v.e * (v.e > 0 ? vH(i, j) : vH(i + 1, j))
+                      //- v.w * (v.w > 0 ? vH(i - 1, j) : vH(i, j)) ) / dx;
+        //divQ_SSA += ( v.n * (v.n > 0 ? vH(i, j) : vH(i, j + 1))
+                      //- v.s * (v.s > 0 ? vH(i, j - 1) : vH(i, j)) ) / dy;
+
+        Qssa.e =   v.e * (v.e > 0 ? vH(i, j) : vH(i + 1, j));
+        Qssa.w = - v.w * (v.w > 0 ? vH(i - 1, j) : vH(i, j));
+        Qssa.n =   v.n * (v.n > 0 ? vH(i, j) : vH(i, j + 1));
+        Qssa.s = - v.s * (v.s > 0 ? vH(i, j - 1) : vH(i, j));
+
+        divQ_SSA += Qssa.e/dx + Qssa.w/dx + Qssa.n/dy + Qssa.s/dy;
+
       }
 
       // Set source terms
@@ -620,10 +643,56 @@ PetscErrorCode IceModel::massContExplicitStep() {
         meltrate_grounded = 0.0;
       }
 
-      if (mask.ice_free_ocean(i, j)) {
+      if (mask.ice_free(i, j)) {
+
+        // if an empty cell has grounded and floating neighbours, decide for pgg
+        if (do_pgg && mask.next_to_grounded_ice(i, j)) {
+
+          // Add the flow contribution to this partially filled cell.
+          // Hpggstore stores ice mass, its height does not relate to the thickness of the partial
+          // cell, this is given by H_pgg.
+          H_to_Hpggstore_flux = -(divQ_SSA + divQ_SIA) * dt;
+          vHpggstore(i,j) += H_to_Hpggstore_flux;
+
+          if (vHpggstore(i,j) < 0) {
+            ierr = verbPrintf(3, grid.com, "PISM WARNING: negative Hppgstore"); CHKERRQ(ierr);
+
+            // Note: this adds mass!
+            nonneg_rule_flux += vHpggstore(i,j);
+            vHpggstore(i,j) = 0;
+          }
+
+          // H_pgg is the height of the partial grounded cell
+          PetscReal H_pgg = get_pgg_thickness(vMask.int_star(i, j), vH.star(i, j),
+                                              vh.star(i, j), Q, Qssa, vbed(i,j),
+                                              pgg_coeff, do_const_pgg);
+          PetscReal coverage_ratio  = vHpggstore(i,j) / H_pgg;
+
+          ierr = verbPrintf(2, grid.com, "pgg cover ratio=%f at (%d,%d)\n",coverage_ratio, i, j); CHKERRQ(ierr);
+
+          if (coverage_ratio >= 1.0) {
+            // A partially filled grid cell is now considered to be full.
+            ierr = verbPrintf(2, grid.com, "Hpgg -> full cell at (%d,%d)\n",i, j); CHKERRQ(ierr);
+            Hpggstore_to_H_flux   = vHpggstore(i,j);
+            vHpggstore(i,j) = 0.0;
+
+            // A cell that became "full" experiences both SMB and basal melt.
+          } else {
+            surface_mass_balance = 0.0;
+            meltrate_grounded    = 0.0;
+          }
+
+          // In this case the SSA flux goes into the Hpggstore variable and does not
+          // directly contribute to ice thickness at this location.
+          proc_sum_divQ_SIA += - divQ_SIA;
+          proc_sum_divQ_SSA += - divQ_SSA;
+          divQ_SIA = divQ_SSA = 0;
+
+        } // end of pgg
+
         // Decide whether to apply Albrecht et al 2011 subgrid-scale
         // parameterization
-        if (do_part_grid && mask.next_to_floating_ice(i, j)) {
+        else if (mask.ice_free_ocean(i, j) && do_part_grid && mask.next_to_floating_ice(i, j)) {
 
           // Add the flow contribution to this partially filled cell.
           H_to_Href_flux = -(divQ_SSA + divQ_SIA) * dt;
@@ -663,13 +732,13 @@ PetscErrorCode IceModel::massContExplicitStep() {
           proc_sum_divQ_SIA += - divQ_SIA;
           proc_sum_divQ_SSA += - divQ_SSA;
           divQ_SIA = divQ_SSA = 0;
-        }  else { // end of "if (part_grid...)
+        }  else if (mask.ice_free_ocean(i, j)) { // end of "if (part_grid...)
 
           // Standard ice-free ocean case:
           surface_mass_balance = 0.0;
           meltrate_floating    = 0.0;
         }
-      } // end of "if (ice_free_ocean)"
+      } // end of "if (ice_free)"
 
 
       // Dirichlet BC case (should go last to override previous settings):
@@ -686,7 +755,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
                             - meltrate_grounded // basal melt rate (grounded)
                             - meltrate_floating // sub-shelf melt rate
                             - (divQ_SIA + divQ_SSA)) // flux divergence
-                      + Href_to_H_flux); // corresponds to a cell becoming "full"
+                            + Href_to_H_flux + Hpggstore_to_H_flux); // corresponds to a cell becoming "full"
 
       if (vHnew(i, j) < 0.0) {
         nonneg_rule_flux += -vHnew(i, j);
@@ -753,6 +822,8 @@ PetscErrorCode IceModel::massContExplicitStep() {
   ierr = shelfbmassflux.end_access(); CHKERRQ(ierr);
   ierr = vH.end_access(); CHKERRQ(ierr);
   ierr = vHnew.end_access(); CHKERRQ(ierr);
+  ierr = vh.end_access(); CHKERRQ(ierr);
+  ierr = vbed.end_access(); CHKERRQ(ierr);
 
   if (compute_cumulative_climatic_mass_balance) {
     ierr = climatic_mass_balance_cumulative.end_access(); CHKERRQ(ierr);
@@ -763,6 +834,10 @@ PetscErrorCode IceModel::massContExplicitStep() {
     if (do_redist) {
       ierr = vHresidual.end_access(); CHKERRQ(ierr);
     }
+  }
+
+  if (do_pgg) {
+    ierr = vHpggstore.end_access(); CHKERRQ(ierr);
   }
 
   if (dirichlet_bc) {

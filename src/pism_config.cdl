@@ -64,6 +64,12 @@ netcdf pism_config {
     pism_config:part_redist = "no";
     pism_config:part_redist_doc = "for partially filled grid cell scheme, redistribute residuals Hresidual";
 
+    pism_config:do_pgg = "no";
+    pism_config:do_pgg_doc = "apply partially filled grid cell scheme at grounded margins";
+
+    pism_config:do_const_pgg = "no";
+    pism_config:do_const_pgg_doc = "simple constant part grid coefficient at grounded margins";
+
     pism_config:kill_icebergs = "no";
     pism_config:kill_icebergs_doc = "identify and kill detached ice-shelf areas";
 

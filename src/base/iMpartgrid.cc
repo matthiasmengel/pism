@@ -115,7 +115,7 @@ PetscErrorCode IceModel::calculateRedistResiduals() {
     for (PetscInt j = grid.ys; j < grid.ys + grid.ym; ++j) {
       // first step: distributing residual ice masses
       if (vHresidual(i, j) > 0.0 && putOnTop==PETSC_FALSE) {
-        
+
         planeStar<PetscScalar> thk = vH.star(i, j),
           bed = vbed.star(i, j);
 
@@ -140,9 +140,9 @@ PetscErrorCode IceModel::calculateRedistResiduals() {
         } else {
           vHnew(i, j) += vHresidual(i, j); // mass conservation, but thick ice at one grid cell possible
           vHresidualnew(i, j) = 0.0;
-          ierr = verbPrintf(4, grid.com, 
+          ierr = verbPrintf(4, grid.com,
                             "!!! PISM WARNING: Hresidual has %d partially filled neighbors, "
-                            " set ice thickness to vHnew = %.2e at %d, %d \n", 
+                            " set ice thickness to vHnew = %.2e at %d, %d \n",
                             N, vHnew(i, j), i, j ); CHKERRQ(ierr);
         }
       }
@@ -193,9 +193,9 @@ PetscErrorCode IceModel::calculateRedistResiduals() {
           vHnew(i, j) += vHref(i, j); // mass conservation, but thick ice at one grid cell possible
           vHref(i, j) = 0.0;
           vHresidualnew(i, j) = 0.0;
-	      ierr = verbPrintf(4, grid.com, 
+        ierr = verbPrintf(4, grid.com,
                             "!!! PISM WARNING: Hresidual=%.2f with %d partially filled neighbors, "
-                            " set ice thickness to vHnew = %.2f at %d, %d \n", 
+                            " set ice thickness to vHnew = %.2f at %d, %d \n",
                             vHresidual(i, j), N , vHnew(i, j), i, j ); CHKERRQ(ierr);
         }
       }
@@ -207,7 +207,7 @@ PetscErrorCode IceModel::calculateRedistResiduals() {
   ierr = vbed.end_access(); CHKERRQ(ierr);
   ierr = vHresidual.end_access(); CHKERRQ(ierr);
   ierr = vHresidualnew.end_access(); CHKERRQ(ierr);
-  
+
   PetscScalar gHcut; //check, if redistribution should be run once more
   ierr = PISMGlobalSum(&Hcut, &gHcut, grid.com); CHKERRQ(ierr);
   putOnTop = PETSC_FALSE;
@@ -228,4 +228,124 @@ PetscErrorCode IceModel::calculateRedistResiduals() {
 
   return 0;
 }
+
+
+//! For ice-free (or partially-filled) cells adjacent to "full" grounded cells, update Hpgg.
+/*!
+  Should only be called if one of the neighbors is grounded.
+*/
+PetscReal IceModel::get_pgg_thickness(planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h,
+                                       planeStar<PetscScalar> Qsia, planeStar<PetscScalar> Qssa, PetscReal bed_ij, PetscReal pgg_coeff, bool const_pgg) {
+
+  // get H_pgg as a function of grounded ice neighboursneighbors
+  PetscReal H_pgg = 0.0;
+  PetscInt N = 0;
+  Mask m;
+
+  // get mean ice thickness over adjacent grounded ice shelf neighbors
+  if (m.grounded_ice(M.e)) { H_pgg += H.e; N++; }
+  if (m.grounded_ice(M.w)) { H_pgg += H.w; N++; }
+  if (m.grounded_ice(M.n)) { H_pgg += H.n; N++; }
+  if (m.grounded_ice(M.s)) { H_pgg += H.s; N++; }
+
+  if (N > 0) {
+    H_pgg = H_pgg / N;
+  } else {
+    // assume constant H_pgg for isolated cells
+    H_pgg = 200.0;
+  }
+
+  if( const_pgg ){
+    PetscSynchronizedPrintf(grid.com,"const pgg coeff=%f, Havg=%e\n",pgg_coeff, H_pgg);
+    return H_pgg * pgg_coeff;
+  }
+
+  // get H_pgg from ice surface elevation
+  PetscReal h_pgg = 0.0;
+  PetscReal H_pgg_fromsurf = 0.0;
+  N = 0;
+  if (m.grounded_ice(M.e)) { h_pgg += h.e; N++; }
+  if (m.grounded_ice(M.w)) { h_pgg += h.w; N++; }
+  if (m.grounded_ice(M.n)) { h_pgg += h.n; N++; }
+  if (m.grounded_ice(M.s)) { h_pgg += h.s; N++; }
+
+  if (N > 0) {
+    H_pgg_fromsurf = h_pgg / N - bed_ij;
+  } else {
+    H_pgg_fromsurf = 200.0 - bed_ij;
+  }
+
+  // take the smaller H_pgg, this is usually H_pgg for downward sloping and H_pgg_fromsurf for upward sloping bet.
+  PetscSynchronizedPrintf(grid.com,"Hpgg=%e, Hpgg_bed=%e, bed=%e\n",H_pgg, H_pgg_fromsurf,bed_ij);
+  H_pgg = PetscMin(H_pgg, H_pgg_fromsurf);
+
+  // make H_pgg dependent on ssa/sia ratio, so it reflects the different flow regimes.
+  // For large ssa/sia, H_pgg -> H_ave * 1 and mimics the part grid Href calculation,
+  // for large ssa/sia, H_pgg -> H_ave * pgg_coeff.
+
+  PetscReal Qssa_max      = 0.0;
+  PetscReal sum_max       = 0.0;
+  PetscReal sia_ssa_coeff = 0.0;
+
+  if( sum_max < PetscAbs(Qsia.e + Qssa.e) ){ sum_max = PetscAbs(Qsia.e + Qssa.e); Qssa_max = PetscAbs(Qssa.e);}
+  if( sum_max < PetscAbs(Qsia.w + Qssa.w) ){ sum_max = PetscAbs(Qsia.w + Qssa.w); Qssa_max = PetscAbs(Qssa.w);}
+  if( sum_max < PetscAbs(Qsia.n + Qssa.n) ){ sum_max = PetscAbs(Qsia.n + Qssa.n); Qssa_max = PetscAbs(Qssa.n);}
+  if( sum_max < PetscAbs(Qsia.s + Qssa.s) ){ sum_max = PetscAbs(Qsia.s + Qssa.s); Qssa_max = PetscAbs(Qssa.s);}
+
+  if (sum_max > 0.0) {
+    sia_ssa_coeff = pgg_coeff + PetscMin(Qssa_max/sum_max,1.0)*(1.0-pgg_coeff);
+  } else {
+    sia_ssa_coeff = 1.0;
+  }
+  H_pgg = H_pgg * sia_ssa_coeff;
+
+  return H_pgg;
+
+}
+
+//void IceModel::apply_pgg( planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h, double bed_ij,
+                          //planeStar<PetscScalar> Q, planeStar<PetscScalar> Qssa,
+                          //&Hpggstore, double &divQ_SSA, double &divQ_SIA, double &H_to_Hpggstore_flux,
+                          //double &Hpggstore_to_H_flux, double &nonneg_rule_flux, double &surface_mass_balance,
+                          //double &meltrate_grounded, PetscScalar &proc_sum_divQ_SIA, PetscScalar &proc_sum_divQ_SSA )) {
+
+  //// Add the flow contribution to this partially filled cell.
+  //// Hpggstore stores ice mass, its height does not relate to the thickness of the partial
+  //// cell, this is given by H_pgg.
+  //H_to_Hpggstore_flux = -(divQ_SSA + divQ_SIA) * dt;
+  //Hpggstore += H_to_Hppgstore_flux;
+
+  //if (Hpggstore < 0) {
+    //ierr = verbPrintf(3, grid.com, "PISM WARNING: negative Hppgstore"); CHKERRQ(ierr);
+
+    //// Note: this adds mass!
+    //nonneg_rule_flux += Hpggstore;
+    //Hpggstore = 0;
+  //}
+
+  //// H_pgg is the height of the partial grounded cell
+  //PetscReal H_pgg = get_pgg_thickness(M, H, h, Q, Qssa, bed_ij),
+  //coverage_ratio  = Hpggstore / H_pgg;
+
+  //if (coverage_ratio >= 1.0) {
+    //// A partially filled grid cell is now considered to be full.
+
+    //Hpggstore_to_H_flux   = Hpggstore;
+    //Hpggstore = 0.0;
+
+    //// A cell that became "full" experiences both SMB and basal melt.
+  //} else {
+    //surface_mass_balance = 0.0;
+    //meltrate_grounded    = 0.0;
+  //}
+
+  //// In this case the SSA flux goes into the Hpggstore variable and does not
+  //// directly contribute to ice thickness at this location.
+  //proc_sum_divQ_SIA += - divQ_SIA;
+  //proc_sum_divQ_SSA += - divQ_SSA;
+  //divQ_SIA = divQ_SSA = 0;
+
+//}
+
+
 

@@ -194,7 +194,7 @@ PetscErrorCode IceModel::createVecs() {
     ierr = T3.set_attr("valid_min", 0.0); CHKERRQ(ierr);
     ierr = variables.add(T3); CHKERRQ(ierr);
 
-    ierr = Enth3.set_attr("pism_intent", "diagnostic"); CHKERRQ(ierr); 
+    ierr = Enth3.set_attr("pism_intent", "diagnostic"); CHKERRQ(ierr);
   }
 
   // age of ice but only if age will be computed
@@ -249,7 +249,7 @@ PetscErrorCode IceModel::createVecs() {
 
   // grounded_dragging_floating integer mask
   if(config.get_flag("do_eigen_calving")) {
-    ierr = vMask.create(grid, "mask", true, 3); CHKERRQ(ierr); 
+    ierr = vMask.create(grid, "mask", true, 3); CHKERRQ(ierr);
     // The wider stencil is needed for parallel calculation in iMcalving.cc when asking for mask values at the front (offset+1)
   } else {
     ierr = vMask.create(grid, "mask", true, WIDE_STENCIL); CHKERRQ(ierr);
@@ -270,7 +270,7 @@ PetscErrorCode IceModel::createVecs() {
   // iceberg identifying integer mask
   if (config.get_flag("kill_icebergs")) {
     ierr = vIcebergMask.create(grid, "IcebergMask", true, WIDE_STENCIL); CHKERRQ(ierr);
-    ierr = vIcebergMask.set_attrs("internal", 
+    ierr = vIcebergMask.set_attrs("internal",
                                   "iceberg-identifying integer mask",
                                   "", ""); CHKERRQ(ierr);
     vector<double> icebergmask_values(5);
@@ -381,7 +381,7 @@ PetscErrorCode IceModel::createVecs() {
 
   if (config.get_flag("do_eigen_calving") == true) {
     ierr = vPrinStrain1.create(grid, "edot_1", true); CHKERRQ(ierr);
-    ierr = vPrinStrain1.set_attrs("internal", 
+    ierr = vPrinStrain1.set_attrs("internal",
                                   "major principal component of horizontal strain-rate",
                                   "1/s", ""); CHKERRQ(ierr);
     ierr = variables.add(vPrinStrain1); CHKERRQ(ierr);
@@ -390,6 +390,13 @@ PetscErrorCode IceModel::createVecs() {
                                   "minor principal component of horizontal strain-rate",
                                   "1/s", ""); CHKERRQ(ierr);
     ierr = variables.add(vPrinStrain2); CHKERRQ(ierr);
+  }
+
+  if (config.get_flag("do_pgg") == true) {
+    ierr = vHpggstore.create(grid, "Hpggstore", true); CHKERRQ(ierr);
+    ierr = vHpggstore.set_attrs("model_state", "temporary ice thickness at grounded ice front",
+                                "m", ""); CHKERRQ(ierr);
+    ierr = variables.add(vHpggstore); CHKERRQ(ierr);
   }
 
   if (config.get_flag("ssa_dirichlet_bc") == true) {
@@ -431,7 +438,7 @@ PetscErrorCode IceModel::createVecs() {
   ierr = cell_area.set_attr("comment",
                             "values are equal to dx*dy "
                             "if projection parameters are not available; "
-                            "otherwise WGS84 ellipsoid is used"); CHKERRQ(ierr); 
+                            "otherwise WGS84 ellipsoid is used"); CHKERRQ(ierr);
   cell_area.time_independent = true;
   ierr = cell_area.set_glaciological_units("km2"); CHKERRQ(ierr);
   cell_area.write_in_glaciological_units = true;
@@ -464,7 +471,7 @@ PetscErrorCode IceModel::createVecs() {
   ierr = artm.set_attrs(
                         "climate_from_PISMSurfaceModel",  // FIXME: can we do better?
                         "annual average ice surface temperature, below firn processes",
-                        "K", 
+                        "K",
                         "");  // PROPOSED CF standard_name = land_ice_surface_temperature_below_firn
   CHKERRQ(ierr);
 
@@ -480,7 +487,7 @@ PetscErrorCode IceModel::createVecs() {
   ierr = shelfbmassflux.create(grid, "shelfbmassflux", false); CHKERRQ(ierr); // no ghosts; NO HOR. DIFF.!
   ierr = shelfbmassflux.set_attrs(
                                   "climate_state", "ice mass flux from ice shelf base (positive flux is loss from ice shelf)",
-                                  "m s-1", ""); CHKERRQ(ierr); 
+                                  "m s-1", ""); CHKERRQ(ierr);
   // PROPOSED standard name = ice_shelf_basal_specific_mass_balance
   // rescales from m/s to m/a when writing to NetCDF and std out:
   shelfbmassflux.write_in_glaciological_units = true;
@@ -590,7 +597,7 @@ PetscErrorCode IceModel::step(bool do_mass_continuity,
 
   grid.profiler->begin(event_velocity);
 
-  ierr = stress_balance->update(updateAtDepth == false); CHKERRQ(ierr); 
+  ierr = stress_balance->update(updateAtDepth == false); CHKERRQ(ierr);
 
   grid.profiler->end(event_velocity);
 
@@ -602,11 +609,11 @@ PetscErrorCode IceModel::step(bool do_mass_continuity,
   stdout_flags += (updateAtDepth ? "v" : "V");
 
   // communication here for global max; sets CFLmaxdt2D
-  ierr = computeMax2DSlidingSpeed(); CHKERRQ(ierr);   
+  ierr = computeMax2DSlidingSpeed(); CHKERRQ(ierr);
 
   if (updateAtDepth) {
     // communication here for global max; sets CFLmaxdt
-    ierr = computeMax3DVelocities(); CHKERRQ(ierr); 
+    ierr = computeMax3DVelocities(); CHKERRQ(ierr);
   }
 
   //! \li determine the time step according to a variety of stability criteria;
@@ -725,7 +732,7 @@ PetscErrorCode IceModel::step(bool do_mass_continuity,
 
 
 //! Do the time-stepping for an evolution run.
-/*! 
+/*!
 This procedure is the main time-stepping loop.
  */
 PetscErrorCode IceModel::run() {
@@ -847,7 +854,7 @@ PetscErrorCode IceModel::run() {
 
 //! Manage the initialization of the IceModel object.
 /*!
-Please see the documenting comments of the functions called below to find 
+Please see the documenting comments of the functions called below to find
 explanations of their intended uses.
  */
 PetscErrorCode IceModel::init() {
@@ -906,5 +913,5 @@ PetscErrorCode IceModel::init() {
   ierr = MPI_Barrier(grid.com); CHKERRQ(ierr);
   ierr = PetscGetTime(&start_time); CHKERRQ(ierr);
 
-  return 0; 
+  return 0;
 }
