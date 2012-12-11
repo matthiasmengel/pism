@@ -652,10 +652,12 @@ PetscErrorCode IceModel::massContExplicitStep() {
 
       if (mask.ice_free_ocean(i, j)) {
         // FIXME: apply pgg also to ice_free cells on bedrock above sea level?
-
         // ice free cells can have grounded and floating ice as neighbours.
         // decide for pgg in this case
         if (do_pgg && mask.next_to_grounded_ice(i, j)) {
+          // FIXME: a pgg cell can get "overridden" by floating ice or the attached grounded
+          // cell can get afloat.
+          // this if condition does not hold then, Hppgstore value is locked at !=0.
 
           // Add the flow contribution to this partially filled cell.
           // Hpggstore stores ice mass, its height does not relate to the thickness of the partial
@@ -682,7 +684,10 @@ PetscErrorCode IceModel::massContExplicitStep() {
           if (coverage_ratio >= 1.0) {
             // A partially filled grid cell is now considered to be full.
             ierr = verbPrintf(2, grid.com, "Hpgg -> full cell at (%d,%d)\n",i, j); CHKERRQ(ierr);
+            // FIXME: Hpggstore can be thicker than H_pgg, so the zero gradient is not guaranteed.
+            // if Hpggstore_to_H_flux = H_pgg used, mass is not conserved. part_grid uses RedistResiduals for this.
             Hpggstore_to_H_flux   = vHpggstore(i,j);
+            //Hpggstore_to_H_flux   = H_pgg;
             vHpggstore(i,j) = 0.0;
 
             // A cell that became "full" experiences both SMB and basal melt.
@@ -748,7 +753,6 @@ PetscErrorCode IceModel::massContExplicitStep() {
           meltrate_floating    = 0.0;
         }
       } // end of "if (ice_free)"
-
 
       // Dirichlet BC case (should go last to override previous settings):
       if (dirichlet_bc && vBCMask.as_int(i,j) == 1) {
