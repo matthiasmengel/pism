@@ -376,7 +376,7 @@ protected:
   PetscReal get_average_thickness(bool do_redist, planeStar<int> M,
                                   planeStar<PetscScalar> H);
   PetscReal get_pgg_thickness(planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h,
-                              planeStar<PetscScalar> Qsia, planeStar<PetscScalar> Qssa, PetscReal bed_ij, PetscReal pgg_coeff, bool const_pgg);
+                              planeStar<PetscScalar> Qsia, planeStar<PetscScalar> Qssa, PetscReal bed_ij, PetscReal pgg_coeff);
   virtual PetscErrorCode redistResiduals();
   virtual PetscErrorCode calculateRedistResiduals();
 
