@@ -512,7 +512,11 @@ PetscErrorCode IceModel::massContExplicitStep() {
     compute_cumulative_climatic_mass_balance = config.get_flag("compute_cumulative_climatic_mass_balance");
 
   // FIXME: use corrected cell areas (when available)
+
   PetscScalar factor = config.get("ice_density") * (dx * dy);
+  PetscReal ice_rho   = config.get("ice_density"),
+            ocean_rho = config.get("sea_water_density"),
+            rhoq      = ice_rho/ocean_rho;
 
   if (surface != NULL) {
     ierr = surface->ice_surface_mass_flux(acab); CHKERRQ(ierr);
@@ -567,6 +571,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
     ierr = vHpggstore.begin_access(); CHKERRQ(ierr);
     bool pgg_coeff_set;
     ierr = PISMOptionsReal("-pgg_coeff", "specifies the ratio of partially filled grid box height to its surrounding neighbours", pgg_coeff,  pgg_coeff_set); CHKERRQ(ierr);
+
   }
 
   const bool dirichlet_bc = config.get_flag("ssa_dirichlet_bc");
@@ -669,7 +674,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
           // H_pgg is the height of the partial grounded cell
           PetscReal H_pgg = get_pgg_thickness(vMask.int_star(i, j), vH.star(i, j),
                                               vh.star(i, j), Q, Qssa, vbed(i,j),
-                                              pgg_coeff);
+                                              pgg_coeff, rhoq);
           PetscReal coverage_ratio  = vHpggstore(i,j) / H_pgg;
 
           ierr = verbPrintf(2, grid.com, "pgg cover ratio=%f at (%d,%d)\n",coverage_ratio, i, j); CHKERRQ(ierr);
