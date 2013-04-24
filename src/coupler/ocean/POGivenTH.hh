@@ -39,12 +39,12 @@ public:
 
   virtual PetscErrorCode calculate_boundlayer_temp_and_salt();
 
-  virtual PetscErrorCode shelf_base_temp_salinity_3eqn(vector<double> gat_array, PetscInt i, PetscInt j,
-						       PetscReal gas, PetscReal sal_ocean,
+  virtual PetscErrorCode shelf_base_temp_salinity_3eqn(PetscInt i, PetscInt j,
+						       PetscReal sal_ocean,
 						       PetscReal temp_insitu, PetscReal zice,
 						       PetscReal &temp_base, PetscReal &sal_base);
 
-  virtual PetscErrorCode compute_meltrate_3eqn(vector<double> gat_array, PetscReal gas, PetscReal rhow,
+  virtual PetscErrorCode compute_meltrate_3eqn(PetscReal rhow,
 					       PetscReal rhoi, PetscReal temp_base, PetscReal sal_base,
 					       PetscReal sal_ocean, PetscReal &meltrate);
 
@@ -58,62 +58,8 @@ protected:
   IceModelVec2S *ice_thickness;
   IceModelVec2T *theta_ocean, *salinity_ocean;
 
-  vector<double> gat_array;
-  PetscReal gas;
-  bool gamma_T_set;
-  bool gamma_T_separate_set;
-
 private:
   PetscErrorCode allocate_POGivenTH();
 };
-
-
-
-//public:
-  //POGivenTH(IceGrid &g, const NCConfigVariable &conf)
-    //: PGivenClimate<POModifier,PISMOceanModel>(g, conf, NULL)
-  //{
-    //temp_name       = "thetao";
-    //mass_flux_name  = "salinity"; //NOTE: salinity_name instead of mass_flux_name
-    //option_prefix   = "-ocean_th";
-  //}
-
-  //virtual ~POGivenTH() {}
-
-  //virtual PetscErrorCode init(PISMVars &vars);
-  //virtual PetscErrorCode update(PetscReal my_t, PetscReal my_dt);
-
-  //virtual PetscErrorCode sea_level_elevation(PetscReal &result) {
-    //result = sea_level;
-    //return 0;
-  //}
-
-  //virtual PetscErrorCode shelf_base_temperature(IceModelVec2S &result);
-
-  //virtual PetscErrorCode calculate_boundlayer_temp_and_salt();
-
-  //virtual PetscErrorCode shelf_base_mass_flux(IceModelVec2S &result);
-
-  //virtual PetscErrorCode shelf_base_temp_salinity_3eqn(vector<double> gat_array, PetscInt i, PetscInt j,
-						       //PetscReal gas, PetscReal sal_ocean,
-						       //PetscReal temp_insitu, PetscReal zice,
-						       //PetscReal &temp_base, PetscReal &sal_base);
-
-  //virtual PetscErrorCode compute_meltrate_3eqn(vector<double> gat_array, PetscReal gas, PetscReal rhow,
-					       //PetscReal rhoi, PetscReal temp_base, PetscReal sal_base,
-					       //PetscReal sal_ocean, PetscReal &meltrate);
-
-  //virtual PetscErrorCode adlprt(PetscReal salz, PetscReal temp_insitu, PetscReal pres, PetscReal &adlprt_out);
-  //virtual PetscErrorCode pttmpr(PetscReal salz, PetscReal temp_insitu, PetscReal pres,PetscReal rfpres, PetscReal &thetao);
-  //virtual PetscErrorCode potit(PetscReal salz,PetscReal thetao,PetscReal pres,PetscReal rfpres, PetscReal &temp_insitu_out);
-  //protected:
-    //IceModelVec2S *ice_thickness; // is not owned by this class
-    //IceModelVec2S temp_boundlayer, salinity_boundlayer;
-
-    //vector<double> gat_array;
-    //PetscReal gas;
-    //bool gamma_T_set;
-    //bool gamma_T_separate_set;
-//};
 
 #endif /* _POGIVENTH_H_ */
