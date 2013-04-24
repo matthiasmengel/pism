@@ -174,7 +174,7 @@ PetscErrorCode POGivenTH::update(PetscReal my_t, PetscReal my_dt) {
   //ierr = mass_flux.at_time(t+0.5*dt); CHKERRQ(ierr);
   //ierr = temp.at_time(t+0.5*dt); CHKERRQ(ierr);
 
-//  ierr = calculate_boundlayer_temp_and_salt(); CHKERRQ(ierr);
+  ierr = calculate_boundlayer_temp_and_salt(); CHKERRQ(ierr);
 
   //  ierr = mass_flux.average(t, dt); CHKERRQ(ierr);
   //  ierr = temp.average(t, dt); CHKERRQ(ierr);
@@ -208,8 +208,7 @@ PetscErrorCode POGivenTH::update(PetscReal my_t, PetscReal my_dt) {
 
 //NOTE Ported from Matthias
 PetscErrorCode POGivenTH::shelf_base_temperature(IceModelVec2S &result) {
-  PetscErrorCode ierr = verbPrintf(2, grid.com, "start of shelf_base_temperature\n"); CHKERRQ(ierr);
-  ierr = temp_boundlayer->copy_to(result); CHKERRQ(ierr);
+  PetscErrorCode ierr = temp_boundlayer->copy_to(result); CHKERRQ(ierr);
   return 0;
 }
 
@@ -248,6 +247,7 @@ PetscErrorCode POGivenTH::calculate_boundlayer_temp_and_salt() {
 
       (*temp_boundlayer)(i,j)     = temp_base + 273.15; // to Kelvin
       (*salinity_boundlayer)(i,j) = sal_base;
+      ierr = verbPrintf(2, grid.com, "bound temp=%f, salt=%f\n", temp_base,sal_base); CHKERRQ(ierr);
 
     }
   }
@@ -320,8 +320,7 @@ PetscErrorCode POGivenTH::shelf_base_temp_salinity_3eqn(vector<double> gat_array
   // and adjusted for use in FESOM by Ralph Timmermann, 16.02.2011
   // adapted for PISM by matthias.mengel@pik-potsdam.de
 
-  PetscErrorCode ierr = verbPrintf(2, grid.com, "start shelf_base_temp_salinity_3eqn\n"); CHKERRQ(ierr);
-  return 0;
+  PetscErrorCode ierr;
   PetscReal rhor, heat_flux, water_flux;
   PetscReal gats1, gats2, gat;
   // PetscReal gats1, gats2, gas, gat;
