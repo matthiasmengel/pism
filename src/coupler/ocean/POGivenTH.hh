@@ -39,7 +39,7 @@ public:
 
   virtual PetscErrorCode calculate_boundlayer_temp_and_salt();
 
-  virtual PetscErrorCode shelf_base_temp_salinity_3eqn(PetscInt i, PetscInt j,
+  virtual PetscErrorCode shelf_base_temp_salinity_3eqn(
 						       PetscReal sal_ocean,
 						       PetscReal temp_insitu, PetscReal zice,
 						       PetscReal &temp_base, PetscReal &sal_base);
