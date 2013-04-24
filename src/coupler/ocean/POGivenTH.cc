@@ -58,7 +58,7 @@ PetscErrorCode POGivenTH::allocate_POGivenTH() {
   theta_ocean    = new IceModelVec2T;
   salinity_ocean = new IceModelVec2T;
 
-  m_fields["thetao_ocean"]     = theta_ocean;
+  m_fields["theta_ocean"]     = theta_ocean;
   m_fields["salinity_ocean"]  = salinity_ocean;
 
   ierr = process_options(); CHKERRQ(ierr);
@@ -68,12 +68,20 @@ PetscErrorCode POGivenTH::allocate_POGivenTH() {
 
   ierr = theta_ocean->create(grid, "theta_ocean", false); CHKERRQ(ierr);
   ierr = salinity_ocean->create(grid, "salinity_ocean", false); CHKERRQ(ierr);
+  ierr = temp_boundlayer->create(grid, "theta_ocean", false); CHKERRQ(ierr);
+  ierr = salinity_boundlayer->create(grid, "salinity_ocean", false); CHKERRQ(ierr);
 
   ierr = theta_ocean->set_attrs("climate_forcing",
-                        "absolute temperature of the adjacent ocean",
+                        "absolute potential temperature of the adjacent ocean",
                         "Kelvin", ""); CHKERRQ(ierr);
   ierr = salinity_ocean->set_attrs("climate_forcing",
 			     "salinity of the adjacent ocean",
+			     "g/kg", ""); CHKERRQ(ierr);
+  ierr = temp_boundlayer->set_attrs("climate_forcing",
+                        "in situ temperature of the ice-ocean boundary layer",
+                        "Kelvin", ""); CHKERRQ(ierr);
+  ierr = salinity_boundlayer->set_attrs("climate_forcing",
+			     "salinity of the ice-ocean boundary layer",
 			     "g/kg", ""); CHKERRQ(ierr);
 
   return 0;
@@ -140,14 +148,17 @@ PetscErrorCode POGivenTH::init(PISMVars &vars) {
   ice_thickness = dynamic_cast<IceModelVec2S*>(vars.get("land_ice_thickness"));
   if (!ice_thickness) {SETERRQ(grid.com, 1, "ERROR: ice thickness is not available");}
 
+  ierr = verbPrintf(2, grid.com, "before init of ocean vars.\n", gas); CHKERRQ(ierr);
+
   ierr = theta_ocean->init(filename, bc_period, bc_reference_time); CHKERRQ(ierr);
   ierr = salinity_ocean->init(filename, bc_period, bc_reference_time); CHKERRQ(ierr);
 
+  ierr = verbPrintf(2, grid.com, "after init of ocean vars.\n", gas); CHKERRQ(ierr);
   // read time-independent data right away:
   if (theta_ocean->get_n_records() == 1 && salinity_ocean->get_n_records() == 1) {
     ierr = update(grid.time->current(), 0); CHKERRQ(ierr); // dt is irrelevant
   }
-
+  ierr = verbPrintf(2, grid.com, "end of init\n", gas); CHKERRQ(ierr);
   return 0;
 }
 
@@ -162,7 +173,7 @@ PetscErrorCode POGivenTH::update(PetscReal my_t, PetscReal my_dt) {
   //ierr = mass_flux.at_time(t+0.5*dt); CHKERRQ(ierr);
   //ierr = temp.at_time(t+0.5*dt); CHKERRQ(ierr);
 
-  ierr = calculate_boundlayer_temp_and_salt(); CHKERRQ(ierr);
+//  ierr = calculate_boundlayer_temp_and_salt(); CHKERRQ(ierr);
 
   //  ierr = mass_flux.average(t, dt); CHKERRQ(ierr);
   //  ierr = temp.average(t, dt); CHKERRQ(ierr);
@@ -196,7 +207,8 @@ PetscErrorCode POGivenTH::update(PetscReal my_t, PetscReal my_dt) {
 
 //NOTE Ported from Matthias
 PetscErrorCode POGivenTH::shelf_base_temperature(IceModelVec2S &result) {
-  PetscErrorCode ierr = temp_boundlayer.copy_to(result); CHKERRQ(ierr);
+  PetscErrorCode ierr = verbPrintf(2, grid.com, "start of shelf_base_temperature\n"); CHKERRQ(ierr);
+  ierr = temp_boundlayer.copy_to(result); CHKERRQ(ierr);
   return 0;
 }
 
@@ -214,8 +226,8 @@ PetscErrorCode POGivenTH::calculate_boundlayer_temp_and_salt() {
   ierr = ice_thickness->begin_access();   CHKERRQ(ierr);
   ierr = theta_ocean->begin_access(); CHKERRQ(ierr);
   ierr = salinity_ocean->begin_access(); CHKERRQ(ierr);
-  ierr = salinity_boundlayer.begin_access(); CHKERRQ(ierr);
-  ierr = temp_boundlayer.begin_access(); CHKERRQ(ierr);
+  ierr = salinity_boundlayer->begin_access(); CHKERRQ(ierr);
+  ierr = temp_boundlayer->begin_access(); CHKERRQ(ierr);
 
   for (PetscInt i=grid.xs; i<grid.xs+grid.xm; ++i) {
     for (PetscInt j=grid.ys; j<grid.ys+grid.ym; ++j) {
@@ -233,16 +245,16 @@ PetscErrorCode POGivenTH::calculate_boundlayer_temp_and_salt() {
       shelf_base_temp_salinity_3eqn(gat_array, i, j, gas, sal_ocean, temp_insitu, zice, temp_base,
                                     sal_base);
 
-      temp_boundlayer(i,j)     = temp_base + 273.15; // to Kelvin
-      salinity_boundlayer(i,j) = sal_base;
+      (*temp_boundlayer)(i,j)     = temp_base + 273.15; // to Kelvin
+      (*salinity_boundlayer)(i,j) = sal_base;
 
     }
   }
   ierr = ice_thickness->end_access(); CHKERRQ(ierr); // NOTE is this way ok? (Yes. -- CK)
   ierr = theta_ocean->end_access(); CHKERRQ(ierr);
   ierr = salinity_ocean->end_access(); CHKERRQ(ierr);
-  ierr = salinity_boundlayer.end_access(); CHKERRQ(ierr);
-  ierr = temp_boundlayer.end_access(); CHKERRQ(ierr);
+  ierr = salinity_boundlayer->end_access(); CHKERRQ(ierr);
+  ierr = temp_boundlayer->end_access(); CHKERRQ(ierr);
 
   return 0;
 }
@@ -267,15 +279,15 @@ PetscErrorCode POGivenTH::shelf_base_mass_flux(IceModelVec2S &result) {
 
   ierr = result.begin_access(); CHKERRQ(ierr);
   ierr = salinity_ocean->begin_access(); CHKERRQ(ierr);
-  ierr = salinity_boundlayer.begin_access(); CHKERRQ(ierr);
-  ierr = temp_boundlayer.begin_access(); CHKERRQ(ierr);
+  ierr = salinity_boundlayer->begin_access(); CHKERRQ(ierr);
+  ierr = temp_boundlayer->begin_access(); CHKERRQ(ierr);
 
   for (PetscInt i=grid.xs; i<grid.xs+grid.xm; ++i) {
     for (PetscInt j=grid.ys; j<grid.ys+grid.ym; ++j) {
 
       sal_ocean = (*salinity_ocean)(i,j); //NOTE salinity instead of mass_flux
-      sal_base  = salinity_boundlayer(i,j);
-      temp_base = temp_boundlayer(i,j) - 273.15; // to degC
+      sal_base  = (*salinity_boundlayer)(i,j);
+      temp_base = (*temp_boundlayer)(i,j) - 273.15; // to degC
 
       compute_meltrate_3eqn(gat_array, gas, rhow, rhoi, temp_base, sal_base, sal_ocean, meltrate_3eqn);
       //mpute_meltrate_3eqn(rhow, rhoi, temp_base, sal_base, sal_ocean, meltrate_3eqn);
@@ -287,8 +299,8 @@ PetscErrorCode POGivenTH::shelf_base_mass_flux(IceModelVec2S &result) {
 
   ierr = result.end_access(); CHKERRQ(ierr);
   ierr = salinity_ocean->end_access(); CHKERRQ(ierr);
-  ierr = salinity_boundlayer.end_access(); CHKERRQ(ierr);
-  ierr = temp_boundlayer.end_access(); CHKERRQ(ierr);
+  ierr = salinity_boundlayer->end_access(); CHKERRQ(ierr);
+  ierr = temp_boundlayer->end_access(); CHKERRQ(ierr);
 
   return 0;
 }
@@ -307,7 +319,8 @@ PetscErrorCode POGivenTH::shelf_base_temp_salinity_3eqn(vector<double> gat_array
   // and adjusted for use in FESOM by Ralph Timmermann, 16.02.2011
   // adapted for PISM by matthias.mengel@pik-potsdam.de
 
-  //PetscErrorCode ierr;
+  PetscErrorCode ierr = verbPrintf(2, grid.com, "start shelf_base_temp_salinity_3eqn\n"); CHKERRQ(ierr);
+  return 0;
   PetscReal rhor, heat_flux, water_flux;
   PetscReal gats1, gats2, gat;
   // PetscReal gats1, gats2, gas, gat;
