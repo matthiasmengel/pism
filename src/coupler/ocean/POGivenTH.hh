@@ -54,9 +54,8 @@ public:
 
 protected:
   IceModelVec2T *shelfbtemp, *shelfbmassflux;
-  //IceModelVec2T *temp_boundlayer, *salinity_boundlayer;
-  IceModelVec2S *ice_thickness; // is not owned by this class
-  IceModelVec2S temp_boundlayer, salinity_boundlayer;
+  IceModelVec2T *temp_boundlayer, *salinity_boundlayer;
+  IceModelVec2S *ice_thickness;
   IceModelVec2T *theta_ocean, *salinity_ocean;
 
   vector<double> gat_array;

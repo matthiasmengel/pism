@@ -57,6 +57,8 @@ PetscErrorCode POGivenTH::allocate_POGivenTH() {
   // will be de-allocated by the parent's destructor
   theta_ocean    = new IceModelVec2T;
   salinity_ocean = new IceModelVec2T;
+  temp_boundlayer    = new IceModelVec2T;
+  salinity_boundlayer = new IceModelVec2T;
 
   m_fields["theta_ocean"]     = theta_ocean;
   m_fields["salinity_ocean"]  = salinity_ocean;
@@ -70,7 +72,6 @@ PetscErrorCode POGivenTH::allocate_POGivenTH() {
   ierr = salinity_ocean->create(grid, "salinity_ocean", false); CHKERRQ(ierr);
   ierr = temp_boundlayer->create(grid, "theta_ocean", false); CHKERRQ(ierr);
   ierr = salinity_boundlayer->create(grid, "salinity_ocean", false); CHKERRQ(ierr);
-
   ierr = theta_ocean->set_attrs("climate_forcing",
                         "absolute potential temperature of the adjacent ocean",
                         "Kelvin", ""); CHKERRQ(ierr);
@@ -208,7 +209,7 @@ PetscErrorCode POGivenTH::update(PetscReal my_t, PetscReal my_dt) {
 //NOTE Ported from Matthias
 PetscErrorCode POGivenTH::shelf_base_temperature(IceModelVec2S &result) {
   PetscErrorCode ierr = verbPrintf(2, grid.com, "start of shelf_base_temperature\n"); CHKERRQ(ierr);
-  ierr = temp_boundlayer.copy_to(result); CHKERRQ(ierr);
+  ierr = temp_boundlayer->copy_to(result); CHKERRQ(ierr);
   return 0;
 }
 
