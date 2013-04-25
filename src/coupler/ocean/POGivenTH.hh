@@ -40,21 +40,23 @@ public:
   virtual PetscErrorCode calculate_boundlayer_temp_and_salt();
 
   virtual PetscErrorCode shelf_base_temp_salinity_3eqn(
-						       PetscReal sal_ocean,
-						       PetscReal temp_insitu, PetscReal zice,
-						       PetscReal &temp_base, PetscReal &sal_base);
+                                                       PetscReal sal_ocean,
+                                                       PetscReal temp_insitu, PetscReal zice,
+                                                       PetscReal &temp_base, PetscReal &sal_base);
 
   virtual PetscErrorCode compute_meltrate_3eqn(PetscReal rhow,
-					       PetscReal rhoi, PetscReal temp_base, PetscReal sal_base,
-					       PetscReal sal_ocean, PetscReal &meltrate);
+                                               PetscReal rhoi, PetscReal temp_base, PetscReal sal_base,
+                                               PetscReal sal_ocean, PetscReal &meltrate);
 
-  virtual PetscErrorCode adlprt(PetscReal salz, PetscReal temp_insitu, PetscReal pres, PetscReal &adlprt_out);
-  virtual PetscErrorCode pttmpr(PetscReal salz, PetscReal temp_insitu, PetscReal pres,PetscReal rfpres, PetscReal &thetao);
-  virtual PetscErrorCode potit(PetscReal salz,PetscReal thetao,PetscReal pres,PetscReal rfpres, PetscReal &temp_insitu_out);
+  virtual PetscErrorCode adiabatic_temperature_gradient(PetscReal salinity, PetscReal temp_insitu, PetscReal pressure, PetscReal &adlprt_out);
+  virtual PetscErrorCode potential_temperature(PetscReal salinity,PetscReal temp_insitu,PetscReal pressure,
+                                                    PetscReal reference_pressure, PetscReal& thetao);
+  virtual PetscErrorCode insitu_temperature(PetscReal salinity, PetscReal thetao,
+                                                 PetscReal pressure,PetscReal reference_pressure,
+                                                 PetscReal &temp_insitu_out);
 
 protected:
   IceModelVec2T *shelfbtemp, *shelfbmassflux;
-  IceModelVec2T *temp_boundlayer, *salinity_boundlayer;
   IceModelVec2S *ice_thickness;
   IceModelVec2T *theta_ocean, *salinity_ocean;
 

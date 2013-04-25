@@ -77,14 +77,14 @@ PetscErrorCode POGivenTH::allocate_POGivenTH() {
                         "absolute potential temperature of the adjacent ocean",
                         "Kelvin", ""); CHKERRQ(ierr);
   ierr = salinity_ocean->set_attrs("climate_forcing",
-			     "salinity of the adjacent ocean",
-			     "g/kg", ""); CHKERRQ(ierr);
+           "salinity of the adjacent ocean",
+           "g/kg", ""); CHKERRQ(ierr);
   ierr = shelfbtemp->set_attrs("climate_forcing",
                         "absolute temperature at ice shelf base",
                         "Kelvin", ""); CHKERRQ(ierr);
   ierr = shelfbmassflux->set_attrs("climate_forcing",
-			     "ice mass flux from ice shelf base (positive flux is loss from ice shelf)",
-			     "m s-1", ""); CHKERRQ(ierr);
+           "ice mass flux from ice shelf base (positive flux is loss from ice shelf)",
+           "m s-1", ""); CHKERRQ(ierr);
 
 
   return 0;
@@ -148,17 +148,17 @@ PetscErrorCode POGivenTH::calculate_boundlayer_temp_and_salt() {
 
   for (PetscInt i=grid.xs; i<grid.xs+grid.xm; ++i) {
     for (PetscInt j=grid.ys; j<grid.ys+grid.ym; ++j) {
-      
+
       pressure_at_shelf_base = (rhoi * (*ice_thickness)(i,j))/1000 + reference_pressure; // in bar
 
-      // convert potential to insitu temperature 
-      potit((*salinity_ocean)(i,j), (*theta_ocean)(i,j) - 273.15, pressure_at_shelf_base, reference_pressure, temp_insitu);
+      // convert potential to insitu temperature
+      insitu_temperature((*salinity_ocean)(i,j), (*theta_ocean)(i,j) - 273.15, pressure_at_shelf_base, reference_pressure, temp_insitu);
 
       shelf_base_temp_salinity_3eqn((*salinity_ocean)(i,j), temp_insitu, (*ice_thickness)(i,j), temp_base, sal_base);
       compute_meltrate_3eqn(rhow, rhoi, temp_base, sal_base, (*salinity_ocean)(i,j), bmeltrate);
       ierr = verbPrintf(2, grid.com, "temp_insitu=%f, salt_ocean=%f\n", temp_insitu,(*salinity_ocean)(i,j)); CHKERRQ(ierr);
       ierr = verbPrintf(2, grid.com, "bound temp=%f, salt=%f,bmelt=%f\n", temp_base,sal_base,bmeltrate); CHKERRQ(ierr);
-      
+
       // the ice/ocean boundary layer temperature is seen by PISM as shelfbtemp.
       (*shelfbtemp)(i,j)     = temp_base + 273.15; // to Kelvin
       (*shelfbmassflux)(i,j) = -1 * bmeltrate;
@@ -183,7 +183,7 @@ PetscErrorCode POGivenTH::shelf_base_mass_flux(IceModelVec2S &result) {
 // Ported from Matthias
 PetscErrorCode POGivenTH::shelf_base_temp_salinity_3eqn(PetscReal sal_ocean,
                                                         PetscReal temp_insitu, PetscReal zice,
-							                                          PetscReal &temp_base, PetscReal &sal_base){
+                                                        PetscReal &temp_base, PetscReal &sal_base){
 //PetscErrorCode POGivenTH::shelf_base_temp_salinity_3eqn(PetscReal gat, PetscReal sal_ocean,
 //                                                        PetscReal temp_insitu, PetscReal zice, PetscReal &temp_base,
 //                                                        PetscReal &sal_base){
@@ -334,14 +334,15 @@ PetscErrorCode POGivenTH::compute_meltrate_3eqn( PetscReal rhow, PetscReal rhoi,
 //FIXME: Is this method really needed???
 /* This method is called by pttmpr(), which is called by potit(), which is called
    by calculate_boundlayer_temp_and_salt().*/
-PetscErrorCode POGivenTH::adlprt(PetscReal salz,PetscReal temp_insitu, PetscReal pres, PetscReal &adlprt_out){
-  // Berechnet aus dem Salzgehalt/psu (SALZ), der in-situ Temperatur/degC
-  // (TEMP) und dem in-situ Druck/dbar (PRES) den adiabatischen Temperatur-
-  // gradienten/(K Dbar^-1) ADLPRT.
-  // Checkwert: ADLPRT =     3.255976E-4 K dbar^-1
-  //       fuer SALZ   =    40.0 psu
-  //            TEMP   =    40.0 DegC
-  //            PRES   = 10000.000 dbar
+PetscErrorCode POGivenTH::adiabatic_temperature_gradient(PetscReal salinity,PetscReal temp_insitu, PetscReal pressure, PetscReal &adlprt_out){
+
+  // calculates the adiabatic temperature gradient  in (K Dbar^-1) from
+  // salinity (psu), in situ temperature (degC) and in situ pressure (dbar)
+
+  // check: adlprt_out =     3.255976E-4 K dbar^-1
+  //    for salinity   =    40.0 psu
+  //     temp_insitu   =    40.0 degC
+  //         pressure  = 10000.000 dbar
 
   PetscReal ds;
   const PetscReal s0 = 35.0;
@@ -351,81 +352,72 @@ PetscErrorCode POGivenTH::adlprt(PetscReal salz,PetscReal temp_insitu, PetscReal
   const PetscReal d0 = -1.1351e-10, d1 = 2.7759e-12;
   const PetscReal e0 = -4.6206e-13, e1 = 1.8676e-14,  e2 = -2.1687e-16;
 
-  ds = salz-s0;
-  adlprt_out = (( ( (e2*temp_insitu + e1)*temp_insitu + e0 )*pres + ( (d1*temp_insitu + d0)*ds
-                                                                      + ( (c3*temp_insitu + c2)*temp_insitu + c1 )*temp_insitu + c0 ) )*pres
+  ds = salinity-s0;
+  adlprt_out = (( ( (e2*temp_insitu + e1)*temp_insitu + e0 )*pressure + ( (d1*temp_insitu + d0)*ds
+                                                                      + ( (c3*temp_insitu + c2)*temp_insitu + c1 )*temp_insitu + c0 ) )*pressure
                 + (b1*temp_insitu + b0)*ds +  ( (a3*temp_insitu + a2)*temp_insitu + a1 )*temp_insitu + a0);
 
   return 0;
 }
 
-PetscErrorCode POGivenTH::pttmpr(PetscReal salz,PetscReal temp_insitu,PetscReal pres,PetscReal rfpres,
-                                 PetscReal& thetao){
-  // Berechnet aus dem Salzgehalt/psu (SALZ), der in-situ Temperatur/degC
-  // (TEMP) und dem in-situ Druck/dbar (PRES) die potentielle Temperatur/
-  // degC (PTTMPR) bezogen auf den Referenzdruck/dbar (RFPRES). Es wird
-  // ein Runge-Kutta Verfahren vierter Ordnung verwendet.
-  // Checkwert: PTTMPR = 36.89073 DegC
-  //       fuer SALZ   =    40.0 psu
-  //            TEMP   =    40.0 DegC
-  //            PRES   = 10000.000 dbar
-  //            RFPRES =     0.000 dbar
+PetscErrorCode POGivenTH::potential_temperature(PetscReal salinity,PetscReal temp_insitu,PetscReal pressure,
+                                                PetscReal reference_pressure, PetscReal& thetao){
+
+  // Calculates the potential temperature (thetao) from
+  // in situ temperature, salinity, insitu pressure and reference pressure
+  // by use of a 4th order Runge Kutta.
+  // FIXME: this iterative function is then used to in iteration to use find the insitu temperature from
+  // potential ocean temperatures. This is not efficient.
+
+  // check: thetao = 36.89073 DegC
+  //    for salinity           =    40.0 psu
+  //        temp_insitu        =    40.0 DegC
+  //        pressure           = 10000.0 dbar
+  //        reference_pressure =     0.0 dbar
 
   PetscReal ct2  = 0.29289322 , ct3  = 1.707106781;
   PetscReal cq2a = 0.58578644 , cq2b = 0.121320344;
   PetscReal cq3a = 3.414213562, cq3b = -4.121320344;
 
-  //real salz,temp_insitu,pres,rfpres
   PetscReal p,t,dp,dt,q, dd;
-  //real adlprt
 
-  p  = pres;
+  p  = pressure;
   t  = temp_insitu;
-  dp = rfpres-pres;
-  adlprt(salz,t,p,dd);
+  dp = reference_pressure-pressure;
+  adiabatic_temperature_gradient(salinity,t,p,dd);
   dt = dp*dd;
   t  = t +0.5*dt;
   q = dt;
   p  = p +0.5*dp;
-  adlprt(salz,t,p,dd);
+  adiabatic_temperature_gradient(salinity,t,p,dd);
   dt = dp*dd;
   t  = t + ct2*(dt-q);
   q  = cq2a*dt + cq2b*q;
-  adlprt(salz,t,p,dd);
+  adiabatic_temperature_gradient(salinity,t,p,dd);
   dt = dp*dd;
   t  = t + ct3*(dt-q);
   q  = cq3a*dt + cq3b*q;
-  p  = rfpres;
-  adlprt(salz,t,p,dd);
+  p  = reference_pressure;
+  adiabatic_temperature_gradient(salinity,t,p,dd);
   dt = dp*dd;
   thetao = t+ (dt-q-q)/6.0;
 
   return 0;
 }
 
-PetscErrorCode POGivenTH::potit(PetscReal salz,PetscReal thetao,PetscReal pres,PetscReal rfpres, PetscReal &temp_insitu_out){
-  // *********************************************************************
-  // Berechnet aus dem Salzgehalt[psu] (SALZ), der pot. Temperatur[oC]
-  // (PT) und dem Referenzdruck[dbar] (REFPRES) die in-situ Temperatur
-  // [oC] (TIN) bezogen auf den in-situ Druck[dbar] (PRES) mit Hilfe
-  // eines Iterationsverfahrens aus.
+PetscErrorCode POGivenTH::insitu_temperature(PetscReal salinity, PetscReal thetao,
+                                                  PetscReal pressure,PetscReal reference_pressure,
+                                                  PetscReal &temp_insitu_out){
 
-  //integer iter
-  //real salz,thetao,pres,rfpres,tin
-  //real epsi,tpmd,pt1,ptd,pttmpr
+  // Calculates the in situ temperature from salinity, potential temperature and pressure
+  // by iteration.
 
-  //tpmd / 0.001 /
   PetscReal tpmd = 0.001, epsi = 0., tin, pt1, ptd;
 
   for (PetscInt iter=0; iter<101; ++iter){
-    //do iter=1,100
     tin  = thetao+epsi;
-    //     print "tin=" + str(tin)
-    pttmpr(salz,tin,pres,rfpres,pt1);
-    //     PetscErrorCode ierr = verbPrintf(2, grid.com, "pt1=%e\n", pt1); CHKERRQ(ierr);
-    //     print "pt1=" + str(pt1)
+    potential_temperature(salinity,tin,pressure,reference_pressure,pt1);
     ptd  = pt1-thetao;
-    //     print "ptd=" + str(ptd)
     if(PetscAbs(ptd) < tpmd){
       break;
     }else{
