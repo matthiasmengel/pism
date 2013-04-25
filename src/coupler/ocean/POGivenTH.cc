@@ -152,10 +152,11 @@ PetscErrorCode POGivenTH::calculate_boundlayer_temp_and_salt() {
       pressure_at_shelf_base = (rhoi * (*ice_thickness)(i,j))/1000 + reference_pressure; // in bar
 
       // convert potential to insitu temperature
+      // FIXME: this has 3 nested functions in it which may not be efficient.
       insitu_temperature((*salinity_ocean)(i,j), (*theta_ocean)(i,j) - 273.15, pressure_at_shelf_base, reference_pressure, temp_insitu);
 
-      shelf_base_temp_salinity_3eqn((*salinity_ocean)(i,j), temp_insitu, (*ice_thickness)(i,j), temp_base, sal_base);
-      compute_meltrate_3eqn(rhow, rhoi, temp_base, sal_base, (*salinity_ocean)(i,j), bmeltrate);
+      shelf_base_temp_salinity_3eqn(rhow, rhoi,(*salinity_ocean)(i,j), temp_insitu, (*ice_thickness)(i,j), temp_base, bmeltrate);
+      //compute_meltrate_3eqn(rhow, rhoi, temp_base, sal_base, (*salinity_ocean)(i,j), bmeltrate);
       ierr = verbPrintf(2, grid.com, "temp_insitu=%f, salt_ocean=%f\n", temp_insitu,(*salinity_ocean)(i,j)); CHKERRQ(ierr);
       ierr = verbPrintf(2, grid.com, "bound temp=%f, salt=%f,bmelt=%f\n", temp_base,sal_base,bmeltrate); CHKERRQ(ierr);
 
@@ -181,12 +182,9 @@ PetscErrorCode POGivenTH::shelf_base_mass_flux(IceModelVec2S &result) {
 }
 
 // Ported from Matthias
-PetscErrorCode POGivenTH::shelf_base_temp_salinity_3eqn(PetscReal sal_ocean,
-                                                        PetscReal temp_insitu, PetscReal zice,
-                                                        PetscReal &temp_base, PetscReal &sal_base){
-//PetscErrorCode POGivenTH::shelf_base_temp_salinity_3eqn(PetscReal gat, PetscReal sal_ocean,
-//                                                        PetscReal temp_insitu, PetscReal zice, PetscReal &temp_base,
-//                                                        PetscReal &sal_base){
+PetscErrorCode POGivenTH::shelf_base_temp_salinity_3eqn(PetscReal rhow, PetscReal rhoi,
+                                                        PetscReal sal_ocean, PetscReal temp_insitu, PetscReal zice,
+                                                        PetscReal &temp_base, PetscReal &meltrate){
 
   // The three-equation model of ice-shelf ocean interaction (Hellmer and Olbers, 1989).
   // Code derived from BRIOS subroutine iceshelf (which goes back to H.Hellmer's 2D ice shelf model code)
@@ -194,9 +192,8 @@ PetscErrorCode POGivenTH::shelf_base_temp_salinity_3eqn(PetscReal sal_ocean,
   // adapted for PISM by matthias.mengel@pik-potsdam.de
 
   PetscErrorCode ierr;
-  PetscReal rhor, heat_flux, water_flux;
+  PetscReal rhor, sal_base;
   PetscReal gats1, gats2;
-  // PetscReal gats1, gats2, gas, gat;
   PetscReal ep1,ep2,ep3,ep4,ep5;
   PetscReal ex1,ex2,ex3,ex4,ex5;
   PetscReal vt1,sr1,sr2,sf1,sf2,tf1,tf2,tf,sf,seta,re;
@@ -227,18 +224,8 @@ PetscErrorCode POGivenTH::shelf_base_temp_salinity_3eqn(PetscReal sal_ocean,
   PetscReal gat  = 1.00e-4;   //[m/s] RG3417 Default value from Hellmer and Olbers 89
   PetscReal gas  = 5.05e-7;   //[m/s] RG3417 Default value from Hellmer and Olbers 89
 
-  // Calculate
-  // density in the boundary layer: rhow
-  // and interface pressure pg [dbar],
-  // Solve a quadratic equation for the interface salinity sb
-  // to determine the melting/freezing rate seta.
-
-  // FIXME: need to calculate water density instead of const value.
-  //  call fcn_density(thetao,sal,zice,rho)
-  //  rhow = density_0+rho  //was rhow= rho0+rho(i,j,N)
-  //  rhow = 1028.0;
-  //  rhor= rhoi/rhow;
-
+  // calculate salinity and in situ temperature of ice/ocean boundary layer,
+  // by solving a quadratic equation in salinity (sf).
   ep1 = cpw*gat;
   ep2 = cpi*gas;
   ep3 = lhf*gas;
@@ -270,70 +257,27 @@ PetscErrorCode POGivenTH::shelf_base_temp_salinity_3eqn(PetscReal sal_ocean,
   temp_base = tf;
   sal_base  = sf;
 
-  return 0;
-}
-
-PetscErrorCode POGivenTH::compute_meltrate_3eqn( PetscReal rhow, PetscReal rhoi,
-                                                 PetscReal temp_base, PetscReal sal_base,
-                                                 PetscReal sal_ocean, PetscReal &meltrate){
-
-  // The three-equation model of ice-shelf ocean interaction (Hellmer and Olbers, 1989).
-  // Code derived from BRIOS subroutine iceshelf (which goes back to H.Hellmer's 2D ice shelf model code)
-  // and adjusted for use in FESOM by Ralph Timmermann, 16.02.2011
-  // adapted for PISM by matthias.mengel@pik-potsdam.de
-
-  //PetscErrorCode ierr;
-  PetscReal rhor, heat_flux, water_flux;
-  PetscReal gat;
-  //PetscReal gas, gat;
-  PetscReal ep5;
-
-  PetscReal tob=  -20.;                        //temperature at the ice surface
-  //   PetscReal rhoi=  920.;                      //mean ice density
-  PetscReal cpw =  4180.0;                    //Barnier et al. (1995)
-  PetscReal lhf =  3.33e+5;                   //latent heat of fusion
-  PetscReal atk =  273.15;                    //0 deg C in Kelvin
-  //FIXME: can use PISMs surface temp for tob?
-  PetscReal cpi =  152.5+7.122*(atk+tob);     //Paterson:"The Physics of Glaciers"
-
-  PetscReal L    = 334000.;                   // [J/Kg]
-
-  // Prescribe the turbulent heat and salt transfer coeff. GAT and GAS
-
-  //gat  = 1.00e-4;   //[m/s] RG3417
-  //if (gamma_T_separate_set) {
-  //    PetscReal gat_PIG_north = gat_array[0];
-  //    PetscReal gat_PIG_south = gat_array[1];
-  //    PetscReal gat_TG = gat_array[2];
-  //}
-
-  PetscReal gas  = 5.05e-7;   //[m/s] RG3417
-
   // Calculate
   // density in the boundary layer: rhow
-  // and interface pressure pg [dbar],
-  // Solve a quadratic equation for the interface salinity sb
+  // and interface pressure pg [dbar]
   // to determine the melting/freezing rate seta.
 
   // FIXME: need to calculate water density instead of const value.
   //  call fcn_density(thetao,sal,zice,rho)
   //  rhow = density_0+rho  //was rhow= rho0+rho(i,j,N)
   //  rhow = 1028.0;
+  //  rhor= rhoi/rhow;
+
   rhor= rhoi/rhow;
   ep5 = gas/rhor;
 
   // Calculate the melting/freezing rate [m/s]
-  meltrate = ep5*(1.0-sal_ocean/sal_base);     //rt thinks this is not needed
-
-  //   heat_flux  = rhow*cpw*gat*(temp_insitu-tf);      // [W/m2]
-  //   water_flux =          gas*(sf-sal)/sf;   // [m/s]
+  meltrate = ep5*(1.0-sal_ocean/sal_base);
 
   return 0;
 }
 
-//FIXME: Is this method really needed???
-/* This method is called by pttmpr(), which is called by potit(), which is called
-   by calculate_boundlayer_temp_and_salt().*/
+
 PetscErrorCode POGivenTH::adiabatic_temperature_gradient(PetscReal salinity,PetscReal temp_insitu, PetscReal pressure, PetscReal &adlprt_out){
 
   // calculates the adiabatic temperature gradient  in (K Dbar^-1) from
@@ -366,8 +310,6 @@ PetscErrorCode POGivenTH::potential_temperature(PetscReal salinity,PetscReal tem
   // Calculates the potential temperature (thetao) from
   // in situ temperature, salinity, insitu pressure and reference pressure
   // by use of a 4th order Runge Kutta.
-  // FIXME: this iterative function is then used to in iteration to use find the insitu temperature from
-  // potential ocean temperatures. This is not efficient.
 
   // check: thetao = 36.89073 DegC
   //    for salinity           =    40.0 psu
