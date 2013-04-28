@@ -119,7 +119,7 @@ PetscErrorCode POGivenTH::update(PetscReal my_t, PetscReal my_dt) {
   ierr = theta_ocean->average(t, dt); CHKERRQ(ierr);
   ierr = salinity_ocean->average(t, dt); CHKERRQ(ierr);
 
-  ierr = calculate_boundlayer_temp_and_salt(); CHKERRQ(ierr);
+  ierr = calc_shelfbtemp_shelfbmassflux(); CHKERRQ(ierr);
 
   return 0;
 }
@@ -129,7 +129,7 @@ PetscErrorCode POGivenTH::shelf_base_temperature(IceModelVec2S &result) {
   return 0;
 }
 
-PetscErrorCode POGivenTH::calculate_boundlayer_temp_and_salt() {
+PetscErrorCode POGivenTH::calc_shelfbtemp_shelfbmassflux() {
 
   PetscErrorCode ierr;
 
@@ -155,10 +155,10 @@ PetscErrorCode POGivenTH::calculate_boundlayer_temp_and_salt() {
       // FIXME: this has 3 nested functions in it which may not be efficient.
       insitu_temperature((*salinity_ocean)(i,j), (*theta_ocean)(i,j) - 273.15, pressure_at_shelf_base, reference_pressure, temp_insitu);
 
-      shelf_base_temp_salinity_3eqn(rhow, rhoi,(*salinity_ocean)(i,j), temp_insitu, (*ice_thickness)(i,j), temp_base, bmeltrate);
-      //compute_meltrate_3eqn(rhow, rhoi, temp_base, sal_base, (*salinity_ocean)(i,j), bmeltrate);
-      ierr = verbPrintf(2, grid.com, "temp_insitu=%f, salt_ocean=%f\n", temp_insitu,(*salinity_ocean)(i,j)); CHKERRQ(ierr);
-      ierr = verbPrintf(2, grid.com, "bound temp=%f, salt=%f,bmelt=%f\n", temp_base,sal_base,bmeltrate); CHKERRQ(ierr);
+      shelfbtemp_shelfbmelt_salinity_3eqn(rhow, rhoi,(*salinity_ocean)(i,j), temp_insitu, (*ice_thickness)(i,j), temp_base, bmeltrate);
+
+      //ierr = verbPrintf(2, grid.com, "temp_insitu=%f, salt_ocean=%f\n", temp_insitu,(*salinity_ocean)(i,j)); CHKERRQ(ierr);
+      //ierr = verbPrintf(2, grid.com, "bound temp=%f, salt=%f,bmelt=%f\n", temp_base,sal_base,bmeltrate); CHKERRQ(ierr);
 
       // the ice/ocean boundary layer temperature is seen by PISM as shelfbtemp.
       (*shelfbtemp)(i,j)     = temp_base + 273.15; // to Kelvin
@@ -181,8 +181,7 @@ PetscErrorCode POGivenTH::shelf_base_mass_flux(IceModelVec2S &result) {
   return 0;
 }
 
-// Ported from Matthias
-PetscErrorCode POGivenTH::shelf_base_temp_salinity_3eqn(PetscReal rhow, PetscReal rhoi,
+PetscErrorCode POGivenTH::shelfbtemp_shelfbmelt_salinity_3eqn(PetscReal rhow, PetscReal rhoi,
                                                         PetscReal sal_ocean, PetscReal temp_insitu, PetscReal zice,
                                                         PetscReal &temp_base, PetscReal &meltrate){
 
@@ -190,6 +189,10 @@ PetscErrorCode POGivenTH::shelf_base_temp_salinity_3eqn(PetscReal rhow, PetscRea
   // Code derived from BRIOS subroutine iceshelf (which goes back to H.Hellmer's 2D ice shelf model code)
   // and adjusted for use in FESOM by Ralph Timmermann, 16.02.2011
   // adapted for PISM by matthias.mengel@pik-potsdam.de
+  // FIXME: uses fixed temperature at ice surface tob=-20 degC to calculate
+  //        heat flux from ice/ocean brine boundary layer into ice.
+  //        We could do this better by usings PISMs ice temperature or heat flux
+  //        calculus at the bottom layers of the ice shelf.
 
   PetscErrorCode ierr;
   PetscReal rhor, sal_base;
@@ -264,9 +267,8 @@ PetscErrorCode POGivenTH::shelf_base_temp_salinity_3eqn(PetscReal rhow, PetscRea
 
   // FIXME: need to calculate water density instead of const value.
   //  call fcn_density(thetao,sal,zice,rho)
-  //  rhow = density_0+rho  //was rhow= rho0+rho(i,j,N)
-  //  rhow = 1028.0;
-  //  rhor= rhoi/rhow;
+  // matthias.mengel: meltrate scales linear with rhow, so
+  //                  the error should be not more than 1e-2.
 
   rhor= rhoi/rhow;
   ep5 = gas/rhor;

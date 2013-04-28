@@ -37,9 +37,9 @@ public:
   virtual PetscErrorCode shelf_base_temperature(IceModelVec2S &result);
   virtual PetscErrorCode shelf_base_mass_flux(IceModelVec2S &result);
 
-  virtual PetscErrorCode calculate_boundlayer_temp_and_salt();
+  virtual PetscErrorCode calc_shelfbtemp_shelfbmassflux();
 
-  virtual PetscErrorCode shelf_base_temp_salinity_3eqn( PetscReal rhow, PetscReal rhoi,
+  virtual PetscErrorCode shelfbtemp_shelfbmelt_salinity_3eqn( PetscReal rhow, PetscReal rhoi,
                                                         PetscReal sal_ocean, PetscReal temp_insitu, PetscReal zice,
                                                         PetscReal &temp_base, PetscReal &meltrate);
 
