@@ -39,7 +39,7 @@ public:
 
   virtual PetscErrorCode calc_shelfbtemp_shelfbmassflux();
 
-  virtual PetscErrorCode shelfbtemp_shelfbmelt_salinity_3eqn( PetscReal rhow, PetscReal rhoi,
+  virtual PetscErrorCode btemp_bmelt_3eqn( PetscReal rhow, PetscReal rhoi,
                                                         PetscReal sal_ocean, PetscReal temp_insitu, PetscReal zice,
                                                         PetscReal &temp_base, PetscReal &meltrate);
 

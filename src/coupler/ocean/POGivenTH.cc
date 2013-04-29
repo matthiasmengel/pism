@@ -155,7 +155,7 @@ PetscErrorCode POGivenTH::calc_shelfbtemp_shelfbmassflux() {
       // FIXME: this has 3 nested functions in it which may not be efficient.
       insitu_temperature((*salinity_ocean)(i,j), (*theta_ocean)(i,j) - 273.15, pressure_at_shelf_base, reference_pressure, temp_insitu);
 
-      shelfbtemp_shelfbmelt_salinity_3eqn(rhow, rhoi,(*salinity_ocean)(i,j), temp_insitu, (*ice_thickness)(i,j), temp_base, bmeltrate);
+      btemp_bmelt_3eqn(rhow, rhoi,(*salinity_ocean)(i,j), temp_insitu, (*ice_thickness)(i,j), temp_base, bmeltrate);
 
       //ierr = verbPrintf(2, grid.com, "temp_insitu=%f, salt_ocean=%f\n", temp_insitu,(*salinity_ocean)(i,j)); CHKERRQ(ierr);
       //ierr = verbPrintf(2, grid.com, "bound temp=%f, salt=%f,bmelt=%f\n", temp_base,sal_base,bmeltrate); CHKERRQ(ierr);
@@ -181,14 +181,26 @@ PetscErrorCode POGivenTH::shelf_base_mass_flux(IceModelVec2S &result) {
   return 0;
 }
 
-PetscErrorCode POGivenTH::shelfbtemp_shelfbmelt_salinity_3eqn(PetscReal rhow, PetscReal rhoi,
+PetscErrorCode POGivenTH::btemp_bmelt_3eqn(PetscReal rhow, PetscReal rhoi,
                                                         PetscReal sal_ocean, PetscReal temp_insitu, PetscReal zice,
                                                         PetscReal &temp_base, PetscReal &meltrate){
 
-  // The three-equation model of ice-shelf ocean interaction (Hellmer and Olbers, 1989).
+  // This function solves the three equation model of ice-shelf ocean interaction (Hellmer and Olbers, 1989).
+  // Equations are
+  // (1) freezing point dependence on salinity and pressure
+  // (2) heat conservation in brine layer
+  // (3) salinity conservation in brine layer
+
   // Code derived from BRIOS subroutine iceshelf (which goes back to H.Hellmer's 2D ice shelf model code)
   // and adjusted for use in FESOM by Ralph Timmermann, 16.02.2011
   // adapted for PISM by matthias.mengel@pik-potsdam.de
+
+  // The model is described in section 3 of
+  // Hellmer, Hartmut, S. S. Jacobs, and A. Jenkins.
+  // "Oceanic erosion of a floating Antarctic glacier in the Amundsen Sea."
+  // Ocean, Ice, and Atmosphere: Interactions at the Antarctic continental margin (S Jacobs, R Weiss, eds)
+  // Antarctic Research Series, AGU, Washington DC, USA 75 (1998): 319-339.
+
   // FIXME: uses fixed temperature at ice surface tob=-20 degC to calculate
   //        heat flux from ice/ocean brine boundary layer into ice.
   //        We could do this better by usings PISMs ice temperature or heat flux
@@ -233,7 +245,6 @@ PetscErrorCode POGivenTH::shelfbtemp_shelfbmelt_salinity_3eqn(PetscReal rhow, Pe
   ep2 = cpi*gas;
   ep3 = lhf*gas;
   ep4 = b-c*zice;
-  //  ep5 = gas/rhor;
   // negative heat flux term in the ice (due to -kappa/D)
   ex1 = a*(ep1-ep2);
   ex2 = ep1*(ep4-temp_insitu)+ep2*(tob+a*sal_ocean-ep4)-ep3;
@@ -248,7 +259,8 @@ PetscErrorCode POGivenTH::shelfbtemp_shelfbmelt_salinity_3eqn(PetscReal rhow, Pe
   sf2 = sr2-sqrt(sr1);
   tf2 = a*sf2+ep4;
 
-  // Salinities < 0 psu are not defined, therefore pick the positive of the two solutions:
+  // sf is solution of quadratic equation in salinity.
+  // salinities < 0 psu are not defined, therefore pick the positive of the two solutions.
   if(sf1 > 0.){
     tf = tf1;
     sf = sf1;
@@ -263,7 +275,7 @@ PetscErrorCode POGivenTH::shelfbtemp_shelfbmelt_salinity_3eqn(PetscReal rhow, Pe
   // Calculate
   // density in the boundary layer: rhow
   // and interface pressure pg [dbar]
-  // to determine the melting/freezing rate seta.
+  // to determine the melting/freezing rate.
 
   // FIXME: need to calculate water density instead of const value.
   //  call fcn_density(thetao,sal,zice,rho)
