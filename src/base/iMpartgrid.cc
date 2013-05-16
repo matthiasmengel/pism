@@ -78,6 +78,12 @@ PetscReal IceModel::get_average_thickness(
     H_pg = h_pg - bed_ij;
   }
 
+   // scale grounded partial grid height
+//   ierr = verbPrintf(2, grid.com, "Hpgold = %f\n", H_pg); CHKERRQ(ierr);
+   H_pg = H_pg * pgg_coeff;
+//   ierr = verbPrintf(2, grid.com, "Hpgnew = %f\n", H_pg); CHKERRQ(ierr);
+
+
   // reduces the guess at the front
   // FIXME: should we exclude this at grounded margins?
   if (do_redist) {

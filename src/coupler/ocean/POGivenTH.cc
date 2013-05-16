@@ -195,6 +195,7 @@ PetscErrorCode POGivenTH::calculate_boundlayer_temp_and_salt() {
       potit(sal_ocean, thetao, press, reference_pressure, temp_insitu);
       PetscReal zice = -1 * PetscAbs(shelfbaseelev);
 
+      //ierr = verbPrintf(2, grid.com, "zicei=%f \n", zice); CHKERRQ(ierr);
 
       //shelf_base_temp_salinity_3eqn(gat, sal_ocean, temp_insitu, zice,
       //                                temp_base, sal_base);
