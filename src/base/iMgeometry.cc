@@ -648,7 +648,9 @@ PetscErrorCode IceModel::massContExplicitStep() {
           }
           PetscReal H_average = get_average_thickness(
                           do_redist, vMask.int_star(i, j), vH.star(i, j),
-                          vh.star(i, j), vbed(i,j), pgg_coeff, rhoq, dx);
+                          vh.star(i, j), vbed.star(i,j), pgg_coeff, rhoq, dx);
+
+          ierr = verbPrintf(2, grid.com,"H_average=%f at (%d,%d)\n",H_average,i, j); CHKERRQ(ierr);
 
           PetscReal coverage_ratio = vHref(i, j) / H_average;
           if (coverage_ratio >= 1.0) {

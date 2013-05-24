@@ -37,7 +37,7 @@
 */
 PetscReal IceModel::get_average_thickness(
     bool do_redist, planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h,
-    PetscReal bed_ij, PetscReal pgg_coeff, PetscReal rhoq, const PetscScalar dx) {
+    planeStar<PetscScalar> bed, PetscReal pgg_coeff, PetscReal rhoq, const PetscScalar dx) {
 
  // determine the thickness of partial grid (pg) cells H_pg
  // FIXME: add support for sea level != 0
@@ -46,7 +46,7 @@ PetscReal IceModel::get_average_thickness(
   ierr = verbPrintf(4, grid.com, "######### partial grid cell() start\n"); CHKERRQ(ierr);
 
 
-  PetscReal h_pg = 0.0, H_pg = 0.0, H_nbs = 0.0;
+  PetscReal H_pg = 0.0, h_pg = 0.0, bed_pg = 0.0, H_nbs = 0.0;
   PetscInt N = 0;
   Mask m;
 
@@ -58,9 +58,7 @@ PetscReal IceModel::get_average_thickness(
 
   if (N == 0)
     SETERRQ(grid.com, 1, "N == 0;  call this only if a neighbor is icy!\n");
-
   H_pg = H_pg/ N;
-
 
   // get h_pg, the mean surface elevation of ice filled neighbours
   N = 0;
@@ -71,27 +69,52 @@ PetscReal IceModel::get_average_thickness(
 
   h_pg = h_pg / N;
 
+  // get bed_pg, the mean bedrock elevation of the ice filled neighbours
+  N = 0;
+  if (m.icy(M.e)) { bed_pg += bed.e; N++; }
+  if (m.icy(M.w)) { bed_pg += bed.w; N++; }
+  if (m.icy(M.n)) { bed_pg += bed.n; N++; }
+  if (m.icy(M.s)) { bed_pg += bed.s; N++; }
+
+  bed_pg = bed_pg / N;
+
+  // determine if the cell is attached to floating or grounded ice
+  // if the average thickness H_pg is smaller than the thickness
+  // determined from elevation h_pg minus the average bedrock below
+  // neighboring ice filled cells, then water must be below there
+  // and we state the cell is attached to floating
+  if (H_pg < (h_pg - bed_pg)){
+    // part grid for shelves following [\ref Albrechtetal2011]
+    ierr = verbPrintf(4, grid.com, "floating part grid: Hpg=%f, hpg=%f, bedpg=%f,thk_from_elev=%f\n",
+                      H_pg,h_pg,bed_pg,h_pg-bed_pg); CHKERRQ(ierr);
+    if (do_redist) {
+      const PetscReal  mslope = 2.4511e-18*grid.dx / (300*600 / secpera);
+      // for declining front C / Q0 according to analytical flowline profile in
+      //   vandeveen with v0 = 300m / yr and H0 = 600m
+      H_pg -= 0.8*mslope*pow(H_pg, 5);
+    }
+    return H_pg;
+  }
+
+  ierr = verbPrintf(4, grid.com, "grounded part grid: Hpg=%f, hpg=%f, bedpg=%f,thk_from_elev=%f\n",
+                    H_pg,h_pg,bed_pg,h_pg-bed_pg); CHKERRQ(ierr);
+
+  // scale grounded partial grid height
+  ierr = verbPrintf(4, grid.com, "Hpgold = %f\n", H_pg); CHKERRQ(ierr);
+  H_pg = H_pg - pgg_coeff*dx;
+  // do not allow zero or negative H_pg.
+  if (H_pg <= 0.) H_pg = 1.;
+  ierr = verbPrintf(4, grid.com, "Hpgnew = %f\n", H_pg); CHKERRQ(ierr);
 
   // if H_pg  would lead to upward sloping surface elevation,
   // choose H_pg to extend surface elevation in a constant way.
-  if (H_pg > (h_pg - bed_ij)){
-    H_pg = h_pg - bed_ij;
+  ierr = verbPrintf(4, grid.com, "Hpg=%f, hpg=%f, bedij=%f,thk_from_elevij=%f\n",
+                    H_pg,h_pg,bed.ij,h_pg-bed.ij); CHKERRQ(ierr);
+  if (H_pg > (h_pg - bed.ij)){
+    ierr = verbPrintf(4, grid.com, "upward sloping, reduce grounded pgg height\n"); CHKERRQ(ierr);
+    H_pg = h_pg - bed.ij;
   }
 
-   // scale grounded partial grid height
-//   ierr = verbPrintf(2, grid.com, "Hpgold = %f\n", H_pg); CHKERRQ(ierr);
-   H_pg = H_pg * ( 1. - pgg_coeff*dx );
-//   ierr = verbPrintf(2, grid.com, "Hpgnew = %f\n", H_pg); CHKERRQ(ierr);
-
-
-  // reduces the guess at the front
-  // FIXME: should we exclude this at grounded margins?
-  if (do_redist) {
-    const PetscReal  mslope = 2.4511e-18*grid.dx / (300*600 / secpera);
-    // for declining front C / Q0 according to analytical flowline profile in
-    //   vandeveen with v0 = 300m / yr and H0 = 600m
-    H_pg -= 0.8*mslope*pow(H_pg, 5);
-  }
 
   return H_pg;
 }
