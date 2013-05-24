@@ -37,7 +37,7 @@
 */
 PetscReal IceModel::get_average_thickness(
     bool do_redist, planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h,
-    PetscReal bed_ij, PetscReal pgg_coeff, PetscReal rhoq) {
+    PetscReal bed_ij, PetscReal pgg_coeff, PetscReal rhoq, const PetscScalar dx) {
 
  // determine the thickness of partial grid (pg) cells H_pg
  // FIXME: add support for sea level != 0
@@ -80,7 +80,7 @@ PetscReal IceModel::get_average_thickness(
 
    // scale grounded partial grid height
 //   ierr = verbPrintf(2, grid.com, "Hpgold = %f\n", H_pg); CHKERRQ(ierr);
-   H_pg = H_pg * pgg_coeff;
+   H_pg = H_pg * ( 1. - pgg_coeff*dx );
 //   ierr = verbPrintf(2, grid.com, "Hpgnew = %f\n", H_pg); CHKERRQ(ierr);
 
 
