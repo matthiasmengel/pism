@@ -101,9 +101,9 @@ PetscReal IceModel::get_average_thickness(
 
   // scale grounded partial grid height
   ierr = verbPrintf(4, grid.com, "Hpgold = %f\n", H_pg); CHKERRQ(ierr);
-  H_pg = H_pg - pgg_coeff*dx;
-  // do not allow zero or negative H_pg.
-  if (H_pg <= 0.) H_pg = 1.;
+  H_pg = pgg_coeff * H_pg;
+  // do not allow too small or negative H_pg.
+  if (H_pg <= 1.) H_pg = 1.;
   ierr = verbPrintf(4, grid.com, "Hpgnew = %f\n", H_pg); CHKERRQ(ierr);
 
   // if H_pg  would lead to upward sloping surface elevation,
