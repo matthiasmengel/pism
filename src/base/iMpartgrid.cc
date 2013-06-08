@@ -37,10 +37,9 @@
 */
 PetscReal IceModel::get_average_thickness(
     bool do_redist, planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h,
-    planeStar<PetscScalar> bed, PetscReal pgg_coeff, PetscReal rhoq, const PetscScalar dx) {
+    planeStar<PetscScalar> bed, PetscReal pgg_coeff, PetscReal rhoq, PetscReal sea_level) {
 
  // determine the thickness of partial grid (pg) cells H_pg
- // FIXME: add support for sea level != 0
 
   PetscErrorCode ierr;
   ierr = verbPrintf(4, grid.com, "######### partial grid cell() start\n"); CHKERRQ(ierr);
@@ -80,13 +79,13 @@ PetscReal IceModel::get_average_thickness(
 
   // determine if the cell is attached to floating or grounded ice
   // if the average thickness H_pg is smaller than the thickness
-  // determined from elevation h_pg minus the average bedrock below
-  // neighboring ice filled cells, then water must be below there
+  // determined from elevation h_pg minus the average bedrock
+  // below neighboring ice filled cells, then water must be below there
   // and we state the cell is attached to floating
-  if (H_pg < (h_pg - bed_pg)){
+  if (H_pg  < (h_pg - bed_pg)){
     // part grid for shelves following [\ref Albrechtetal2011]
-    ierr = verbPrintf(2, grid.com, "floating part grid: Hpg=%f, hpg=%f, bedpg=%f,thk_from_elev=%f\n",
-                      H_pg,h_pg,bed_pg,h_pg-bed_pg); CHKERRQ(ierr);
+    ierr = verbPrintf(2, grid.com, "floating part grid: Hpg=%f, hpg=%f, bedpg=%f,thk_from_elev=%f,sea_level=%f\n",
+                      H_pg,h_pg,bed_pg,h_pg-bed_pg,sea_level); CHKERRQ(ierr);
     if (do_redist) {
       const PetscReal  mslope = 2.4511e-18*grid.dx / (300*600 / secpera);
       // for declining front C / Q0 according to analytical flowline profile in
@@ -96,8 +95,8 @@ PetscReal IceModel::get_average_thickness(
     return H_pg;
   }
 
-  ierr = verbPrintf(2, grid.com, "grounded part grid: Hpg=%f, hpg=%f, bedpg=%f,thk_from_elev=%f\n",
-                    H_pg,h_pg,bed_pg,h_pg-bed_pg); CHKERRQ(ierr);
+  ierr = verbPrintf(2, grid.com, "grounded part grid: Hpg=%f, hpg=%f, bedpg=%f,thk_from_elev=%f,sea_leve=%f\n",
+                    H_pg,h_pg,bed_pg,h_pg-bed_pg,sea_level); CHKERRQ(ierr);
 
   // scale grounded partial grid height
   ierr = verbPrintf(2, grid.com, "Hpgold = %f\n", H_pg); CHKERRQ(ierr);
@@ -155,7 +154,7 @@ PetscErrorCode IceModel::calculateRedistResiduals() {
   ierr = vHresidual.copy_to(vHresidualnew); CHKERRQ(ierr);
 
   if (ocean == PETSC_NULL) { SETERRQ(grid.com, 1, "PISM ERROR: ocean == PETSC_NULL");  }
-  PetscReal sea_level = 0.0; //FIXME
+  PetscReal sea_level;
   ierr = ocean->sea_level_elevation(sea_level); CHKERRQ(ierr);
 
   PetscScalar minHRedist = 50.0; // to avoid the propagation of thin ice shelf tongues

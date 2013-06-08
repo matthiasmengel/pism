@@ -374,7 +374,7 @@ protected:
 
   // see iMpartgrid.cc
   PetscReal get_average_thickness(bool do_redist, planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h,
-    planeStar<PetscScalar> bed, PetscReal pgg_coeff, PetscReal rhoq, const PetscScalar dx);
+    planeStar<PetscScalar> bed, PetscReal pgg_coeff, PetscReal rhoq, PetscReal sea_level);
   virtual PetscErrorCode redistResiduals();
   virtual PetscErrorCode calculateRedistResiduals();
 

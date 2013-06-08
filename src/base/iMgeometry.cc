@@ -518,9 +518,10 @@ PetscErrorCode IceModel::massContExplicitStep() {
     ierr = surface->ice_surface_mass_flux(acab); CHKERRQ(ierr);
   } else { SETERRQ(grid.com, 1, "PISM ERROR: surface == NULL"); }
 
-  if (ocean != NULL) {
+  if (ocean == PETSC_NULL) {  SETERRQ(grid.com, 1, "PISM ERROR: ocean == PETSC_NULL");  }
+    PetscReal sea_level;
     ierr = ocean->shelf_base_mass_flux(shelfbmassflux); CHKERRQ(ierr);
-  } else { SETERRQ(grid.com, 2, "PISM ERROR: ocean == NULL"); }
+    ierr = ocean->sea_level_elevation(sea_level); CHKERRQ(ierr);
 
   // const bool sub_gl = config.get_flag("sub_groundingline");
   // if (sub_gl){
@@ -648,7 +649,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
           }
           PetscReal H_average = get_average_thickness(
                           do_redist, vMask.int_star(i, j), vH.star(i, j),
-                          vh.star(i, j), vbed.star(i,j), pgg_coeff, rhoq, dx);
+                          vh.star(i, j), vbed.star(i,j), pgg_coeff, rhoq, sea_level);
 
           ierr = verbPrintf(2, grid.com,"H_average=%f at (%d,%d)\n",H_average,i, j); CHKERRQ(ierr);
 
