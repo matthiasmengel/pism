@@ -655,7 +655,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
 
           PetscReal coverage_ratio = vHref(i, j) / H_average;
           if (coverage_ratio >= 1.0) {
-            ierr = verbPrintf(2, grid.com,"Href to H=%f at (%d,%d)\n",vHref(i,j),i, j); CHKERRQ(ierr);
+            ierr = verbPrintf(4, grid.com,"Href to H=%f at (%d,%d)\n",vHref(i,j),i, j); CHKERRQ(ierr);
             // A partially filled grid cell is now considered to be full.
             if (do_redist)
               vHresidual(i, j) = vHref(i, j) - H_average; // residual ice thickness

@@ -84,7 +84,7 @@ PetscReal IceModel::get_average_thickness(
   // and we state the cell is attached to floating
   if (H_pg  < (h_pg - bed_pg)){
     // part grid for shelves following [\ref Albrechtetal2011]
-    ierr = verbPrintf(2, grid.com, "floating part grid: Hpg=%f, hpg=%f, bedpg=%f,thk_from_elev=%f,sea_level=%f\n",
+    ierr = verbPrintf(4, grid.com, "floating part grid: Hpg=%f, hpg=%f, bedpg=%f,thk_from_elev=%f,sea_level=%f\n",
                       H_pg,h_pg,bed_pg,h_pg-bed_pg,sea_level); CHKERRQ(ierr);
     if (do_redist) {
       const PetscReal  mslope = 2.4511e-18*grid.dx / (300*600 / secpera);
@@ -95,22 +95,22 @@ PetscReal IceModel::get_average_thickness(
     return H_pg;
   }
 
-  ierr = verbPrintf(2, grid.com, "grounded part grid: Hpg=%f, hpg=%f, bedpg=%f,thk_from_elev=%f,sea_leve=%f\n",
+  ierr = verbPrintf(4, grid.com, "grounded part grid: Hpg=%f, hpg=%f, bedpg=%f,thk_from_elev=%f,sea_leve=%f\n",
                     H_pg,h_pg,bed_pg,h_pg-bed_pg,sea_level); CHKERRQ(ierr);
 
   // scale grounded partial grid height
-  ierr = verbPrintf(2, grid.com, "Hpgold = %f\n", H_pg); CHKERRQ(ierr);
+  ierr = verbPrintf(4, grid.com, "Hpgold = %f\n", H_pg); CHKERRQ(ierr);
   H_pg = pgg_coeff * H_pg;
   // do not allow too small or negative H_pg.
   if (H_pg <= 1.) H_pg = 1.;
-  ierr = verbPrintf(2, grid.com, "Hpgnew = %f\n", H_pg); CHKERRQ(ierr);
+  ierr = verbPrintf(4, grid.com, "Hpgnew = %f\n", H_pg); CHKERRQ(ierr);
 
   // if H_pg  would lead to upward sloping surface elevation,
   // choose H_pg to extend surface elevation in a constant way.
-  ierr = verbPrintf(2, grid.com, "Hpg=%f, hpg=%f, bedij=%f,thk_from_elevij=%f\n",
+  ierr = verbPrintf(4, grid.com, "Hpg=%f, hpg=%f, bedij=%f,thk_from_elevij=%f\n",
                     H_pg,h_pg,bed.ij,h_pg-bed.ij); CHKERRQ(ierr);
   if (H_pg > (h_pg - bed.ij)){
-    ierr = verbPrintf(2, grid.com, "upward sloping, reduce grounded pgg height\n"); CHKERRQ(ierr);
+    ierr = verbPrintf(4, grid.com, "upward sloping, reduce grounded pgg height\n"); CHKERRQ(ierr);
     H_pg = h_pg - bed.ij;
   }
 
