@@ -225,6 +225,7 @@ protected:
     bedtoptemp,     //!< temperature seen by bedrock thermal layer, if present; no ghosts
     vHref,          //!< accumulated mass advected to a partially filled grid cell
     vHresidual,     //!< residual ice mass of a not any longer partially (fully) filled grid cell
+    vPgdiag,         //!< diagnose type of part grid
     acab,		//!< accumulation/ablation rate; no ghosts
     climatic_mass_balance_cumulative,    //!< cumulative acab
     artm,		//!< ice temperature at the ice surface but below firn; no ghosts
@@ -374,7 +375,7 @@ protected:
 
   // see iMpartgrid.cc
   PetscReal get_average_thickness(bool do_redist, planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h,
-    planeStar<PetscScalar> bed, PetscReal pgg_coeff, PetscReal rhoq, PetscReal sea_level);
+    planeStar<PetscScalar> bed, PetscReal pgg_coeff, PetscReal rhoq, PetscReal &pgdiag);
   virtual PetscErrorCode redistResiduals();
   virtual PetscErrorCode calculateRedistResiduals();
 

@@ -545,6 +545,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
   ierr = shelfbmassflux.begin_access(); CHKERRQ(ierr);
   ierr = vMask.begin_access();  CHKERRQ(ierr);
   ierr = vHnew.begin_access(); CHKERRQ(ierr);
+  ierr = vPgdiag.begin_access(); CHKERRQ(ierr);
 
   // related to PIK part_grid mechanism; see Albrecht et al 2011
   const bool do_part_grid = config.get_flag("part_grid"),
@@ -631,6 +632,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
         meltrate_grounded = 0.0;
       }
 
+      vPgdiag(i,j) = 0.0;
       if (mask.ice_free_ocean(i, j)) {
         // Decide whether to apply Albrecht et al 2011 subgrid-scale
         // parameterization
@@ -649,7 +651,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
           }
           PetscReal H_average = get_average_thickness(
                           do_redist, vMask.int_star(i, j), vH.star(i, j),
-                          vh.star(i, j), vbed.star(i,j), pgg_coeff, rhoq, sea_level);
+                          vh.star(i, j), vbed.star(i,j), pgg_coeff, rhoq, vPgdiag(i,j));
 
           ierr = verbPrintf(2, grid.com,"H_average=%f at (%d,%d)\n",H_average,i, j); CHKERRQ(ierr);
 

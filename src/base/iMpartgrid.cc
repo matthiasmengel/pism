@@ -37,7 +37,7 @@
 */
 PetscReal IceModel::get_average_thickness(
     bool do_redist, planeStar<int> M, planeStar<PetscScalar> H, planeStar<PetscScalar> h,
-    planeStar<PetscScalar> bed, PetscReal pgg_coeff, PetscReal rhoq, PetscReal sea_level) {
+    planeStar<PetscScalar> bed, PetscReal pgg_coeff, PetscReal rhoq, PetscReal &pgdiag) {
 
  // determine the thickness of partial grid (pg) cells H_pg
 
@@ -83,9 +83,10 @@ PetscReal IceModel::get_average_thickness(
   // below neighboring ice filled cells, then water must be below there
   // and we state the cell is attached to floating
   if (H_pg  < (h_pg - bed_pg)){
+    pgdiag = 1.;
     // part grid for shelves following [\ref Albrechtetal2011]
-    ierr = verbPrintf(4, grid.com, "floating part grid: Hpg=%f, hpg=%f, bedpg=%f,thk_from_elev=%f,sea_level=%f\n",
-                      H_pg,h_pg,bed_pg,h_pg-bed_pg,sea_level); CHKERRQ(ierr);
+    ierr = verbPrintf(4, grid.com, "floating part grid: Hpg=%f, hpg=%f, bedpg=%f,thk_from_elev=%f\n",
+                      H_pg,h_pg,bed_pg,h_pg-bed_pg); CHKERRQ(ierr);
     if (do_redist) {
       const PetscReal  mslope = 2.4511e-18*grid.dx / (300*600 / secpera);
       // for declining front C / Q0 according to analytical flowline profile in
@@ -95,8 +96,9 @@ PetscReal IceModel::get_average_thickness(
     return H_pg;
   }
 
-  ierr = verbPrintf(4, grid.com, "grounded part grid: Hpg=%f, hpg=%f, bedpg=%f,thk_from_elev=%f,sea_leve=%f\n",
-                    H_pg,h_pg,bed_pg,h_pg-bed_pg,sea_level); CHKERRQ(ierr);
+  pgdiag = 2.;
+  ierr = verbPrintf(4, grid.com, "grounded part grid: Hpg=%f, hpg=%f, bedpg=%f,thk_from_elev=%f\n",
+                    H_pg,h_pg,bed_pg,h_pg-bed_pg); CHKERRQ(ierr);
 
   // scale grounded partial grid height
   ierr = verbPrintf(4, grid.com, "Hpgold = %f\n", H_pg); CHKERRQ(ierr);
