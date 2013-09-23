@@ -653,7 +653,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
                           do_redist, vMask.int_star(i, j), vH.star(i, j),
                           vh.star(i, j), vbed.star(i,j), pgg_coeff, rhoq, vPgdiag(i,j));
 
-          ierr = verbPrintf(2, grid.com,"H_average=%f at (%d,%d)\n",H_average,i, j); CHKERRQ(ierr);
+          ierr = verbPrintf(4, grid.com,"H_average=%f at (%d,%d)\n",H_average,i, j); CHKERRQ(ierr);
 
           PetscReal coverage_ratio = vHref(i, j) / H_average;
           if (coverage_ratio >= 1.0) {
