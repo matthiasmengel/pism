@@ -372,7 +372,7 @@ void IceModel::cell_interface_fluxes(bool dirichlet_bc,
           out_SSA_velocity[direction] = bc_velocity.ij.v;
 
         // no SIA flux over boundary
-	//out_SIA_flux[direction] = 0.;
+        //out_SIA_flux[direction] = 0.;
 
       } else if (bc_mask.ij == 0 && bc_mask[direction] > 0) {
 
@@ -498,6 +498,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
     proc_sum_divQ_SIA = 0,
     proc_sum_divQ_SSA = 0,
     proc_surface_ice_flux = 0,
+    proc_discharge_flux = 0,
     // totals over all processors:
     total_H_to_Href_flux = 0,
     total_Href_to_H_flux = 0,
@@ -508,7 +509,8 @@ PetscErrorCode IceModel::massContExplicitStep() {
     total_sub_shelf_ice_flux = 0,
     total_sum_divQ_SIA = 0,
     total_sum_divQ_SSA = 0,
-    total_surface_ice_flux = 0;
+    total_surface_ice_flux = 0,
+    total_discharge_flux = 0;
 
   const PetscScalar dx = grid.dx, dy = grid.dy;
   bool do_ocean_kill = config.get_flag("ocean_kill"),
@@ -603,6 +605,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
         Href_to_H_flux    = 0.0,
         ocean_kill_flux   = 0.0,
         float_kill_flux   = 0.0,
+        discharge_flux   = 0.0,
         nonneg_rule_flux  = 0.0;
 
       if (include_bmr_in_continuity) {
@@ -690,6 +693,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
 
           // kill partial grid cells if not attached to ice
           // FIXME: this destroys mass and has to be accounted
+          discharge_flux = -vHref(i, j);
           vHref(i, j) = 0.0;
 
         }
@@ -703,7 +707,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
         meltrate_floating    = 0.0;
         Href_to_H_flux       = 0.0;
         divQ_SSA             = 0.0;
-	// when vBCMask > 1, allow boundary thickness to adjust to sia flux
+  // when vBCMask > 1, allow boundary thickness to adjust to sia flux
         // standard case for boundary is vBCMask==1
         if (vBCMask.as_int(i,j) == 1) divQ_SIA = 0.0;
       }
@@ -758,6 +762,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
       {
         proc_grounded_basal_ice_flux -= meltrate_grounded;
         proc_sub_shelf_ice_flux      -= meltrate_floating;
+        proc_discharge_flux          += discharge_flux;
         proc_surface_ice_flux        += surface_mass_balance;
         proc_float_kill_flux         += float_kill_flux;
         proc_ocean_kill_flux         += ocean_kill_flux;
@@ -813,6 +818,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
     ierr = PISMGlobalSum(&proc_nonneg_rule_flux,   &total_nonneg_rule_flux,   grid.com); CHKERRQ(ierr);
     ierr = PISMGlobalSum(&proc_ocean_kill_flux,    &total_ocean_kill_flux,    grid.com); CHKERRQ(ierr);
     ierr = PISMGlobalSum(&proc_sub_shelf_ice_flux, &total_sub_shelf_ice_flux, grid.com); CHKERRQ(ierr);
+    ierr = PISMGlobalSum(&proc_discharge_flux,     &total_discharge_flux,     grid.com); CHKERRQ(ierr);
     ierr = PISMGlobalSum(&proc_surface_ice_flux,   &total_surface_ice_flux,   grid.com); CHKERRQ(ierr);
     ierr = PISMGlobalSum(&proc_sum_divQ_SIA,       &total_sum_divQ_SIA,       grid.com); CHKERRQ(ierr);
     ierr = PISMGlobalSum(&proc_sum_divQ_SSA,       &total_sum_divQ_SSA,       grid.com); CHKERRQ(ierr);
@@ -832,6 +838,7 @@ PetscErrorCode IceModel::massContExplicitStep() {
     cumulative_ocean_kill_flux    += total_ocean_kill_flux    * factor;
     cumulative_Href_to_H_flux     += total_Href_to_H_flux     * factor;
     cumulative_H_to_Href_flux     += total_H_to_Href_flux     * factor;
+    cumulative_discharge_flux     += total_discharge_flux     * factor;
   }
 
   // finally copy vHnew into vH and communicate ghosted values
@@ -930,7 +937,7 @@ PetscErrorCode IceModel::sub_gl_position() {
         if (interpol<0.5)
           gl_mask_x+=(interpol-0.5);
         else
-	  gl_mask_unground_x(i+1,j)-=(interpol-0.5);
+          gl_mask_unground_x(i+1,j)-=(interpol-0.5);
 
         ierr = verbPrintf(4, grid.com,"!!! PISM_INFO: type=%s, h1=%f, h2=%f, interpol=%f at i=%d, j=%d\n",subgltype.c_str(),xpart1,xpart2,interpol,i,j); CHKERRQ(ierr);
       }
@@ -1003,7 +1010,7 @@ PetscErrorCode IceModel::sub_gl_position() {
   for (PetscInt i = grid.xs; i < grid.xs + grid.xm; ++i) {
     for (PetscInt j = grid.ys; j < grid.ys + grid.ym; ++j) {
       if (mask.floating_ice(i,j) || mask.ice_free_ocean(i,j))
-	gl_mask_new(i,j) = 1.0 - gl_mask_unground_x(i,j) * gl_mask_unground_y(i,j);
+        gl_mask_new(i,j) = 1.0 - gl_mask_unground_x(i,j) * gl_mask_unground_y(i,j);
     }
   }
 
